@@ -2,23 +2,28 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useMockCart } from '@/lib/mockCart';
 
 interface MobileNavProps {
   cartItemCount?: number;
-  activeTab?: string;
-  onTabChange?: (tab: string) => void;
+  onCartClick?: () => void;
 }
 
 export const MobileNav: React.FC<MobileNavProps> = ({
-  cartItemCount = 0,
-  activeTab = 'home',
-  onTabChange,
+  cartItemCount,
+  onCartClick,
 }) => {
+  const pathname = usePathname();
+  const { cartCount: sharedCartCount } = useMockCart();
+  const effectiveCartCount = cartItemCount !== undefined ? cartItemCount : sharedCartCount;
+
   const navItems = [
     {
       id: 'home',
       label: 'Home',
-      href: '#',
+      href: '/',
+      isActive: pathname === '/',
       icon: (
         <svg
           className="w-5 h-5"
@@ -39,7 +44,8 @@ export const MobileNav: React.FC<MobileNavProps> = ({
     {
       id: 'stores',
       label: 'Stores',
-      href: '#stores',
+      href: '/stores',
+      isActive: pathname.startsWith('/stores'),
       icon: (
         <svg
           className="w-5 h-5"
@@ -58,9 +64,10 @@ export const MobileNav: React.FC<MobileNavProps> = ({
       ),
     },
     {
-      id: 'categories',
-      label: 'Categories',
-      href: '#categories',
+      id: 'products',
+      label: 'Products',
+      href: '/products',
+      isActive: pathname.startsWith('/products'),
       icon: (
         <svg
           className="w-5 h-5"
@@ -82,7 +89,9 @@ export const MobileNav: React.FC<MobileNavProps> = ({
       id: 'cart',
       label: 'Cart',
       href: '#cart',
-      badge: cartItemCount,
+      isActive: false,
+      badge: effectiveCartCount,
+      onClick: onCartClick,
       icon: (
         <svg
           className="w-5 h-5"
@@ -100,27 +109,6 @@ export const MobileNav: React.FC<MobileNavProps> = ({
         </svg>
       ),
     },
-    {
-      id: 'account',
-      label: 'Account',
-      href: '#account',
-      icon: (
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-          />
-        </svg>
-      ),
-    },
   ];
 
   return (
@@ -131,14 +119,13 @@ export const MobileNav: React.FC<MobileNavProps> = ({
     >
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
-          const isActive = activeTab === item.id;
           return (
             <Link
               key={item.id}
               href={item.href}
-              onClick={() => onTabChange?.(item.id)}
+              onClick={item.onClick}
               className={`relative flex flex-col items-center py-1 px-3 rounded-lg text-xs font-medium transition-colors ${
-                isActive
+                item.isActive
                   ? 'text-[#166534]'
                   : 'text-[#647067] hover:text-[#17201A]'
               }`}

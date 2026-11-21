@@ -1,0 +1,304 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { Navbar } from '@/components/layout/Navbar';
+import { Footer } from '@/components/layout/Footer';
+import { MobileNav } from '@/components/layout/MobileNav';
+import { ProductCard } from '@/components/product/ProductCard';
+import { SearchBar } from '@/components/ui/SearchBar';
+import { Button } from '@/components/ui/Button';
+import { getStoreById, getProductsByStore } from '@/data/mockData';
+import { Product } from '@/types';
+import { useMockCart } from '@/lib/mockCart';
+
+interface StoreDetailClientProps {
+  storeId: string;
+}
+
+export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
+  const store = getStoreById(storeId);
+  const initialProducts = useMemo(() => getProductsByStore(storeId), [storeId]);
+
+  const { cartCount, incrementCart } = useMockCart();
+  const [cartToast, setCartToast] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [inStockOnly, setInStockOnly] = useState<boolean>(false);
+
+  // Derive unique categories from products at this store
+  const storeCategories = useMemo(() => {
+    const cats = new Set<string>();
+    initialProducts.forEach((p) => cats.add(p.category));
+    return ['All', ...Array.from(cats)];
+  }, [initialProducts]);
+
+  // In-store filtered products
+  const filteredProducts = useMemo(() => {
+    let list = [...initialProducts];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.brand.toLowerCase().includes(q) ||
+          p.category.toLowerCase().includes(q)
+      );
+    }
+
+    if (selectedCategory !== 'All') {
+      list = list.filter((p) => p.category === selectedCategory);
+    }
+
+    if (inStockOnly) {
+      list = list.filter((p) => p.inStock);
+    }
+
+    return list;
+  }, [initialProducts, searchQuery, selectedCategory, inStockOnly]);
+
+  const handleAddToCart = (product: Product) => {
+    incrementCart();
+    setCartToast(`Added 1x "${product.name}" to cart.`);
+    setTimeout(() => setCartToast(null), 3500);
+  };
+
+  // If store doesn't exist
+  if (!store) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
+        <Navbar />
+        <main className="flex-1 max-w-xl w-full mx-auto px-4 py-16 text-center space-y-4">
+          <div className="w-16 h-16 rounded-full bg-white border border-[#E2E8E3] text-[#DC2626] flex items-center justify-center mx-auto text-2xl font-bold shadow-xs">
+            !
+          </div>
+          <h1 className="text-2xl font-bold text-[#17201A]">Store Not Found</h1>
+          <p className="text-sm text-[#647067]">
+            The store you requested could not be located in our active hyperlocal radius.
+          </p>
+          <div className="pt-2">
+            <Link href="/stores">
+              <Button variant="primary" size="md">
+                Browse All Nearby Stores
+              </Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+        <MobileNav />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
+      <Navbar cartItemCount={cartCount} />
+
+      {/* Cart Toast Notification */}
+      {cartToast && (
+        <aside
+          aria-live="polite"
+          className="fixed top-20 right-4 z-50 max-w-sm p-3.5 bg-white border border-[#166534] rounded-xl shadow-lg flex items-center gap-3 animate-fade-in"
+        >
+          <div className="w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center shrink-0 text-xs font-bold">
+            ✓
+          </div>
+          <p className="text-xs font-medium text-[#17201A]">{cartToast}</p>
+          <button
+            onClick={() => setCartToast(null)}
+            className="text-[#647067] hover:text-[#17201A] text-xs font-bold ml-auto"
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
+        </aside>
+      )}
+
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 pb-24 md:pb-16">
+        {/* Navigation Breadcrumbs */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-[#647067]">
+          <Link href="/" className="hover:text-[#166534] transition-colors">
+            Home
+          </Link>
+          <span>/</span>
+          <Link href="/stores" className="hover:text-[#166534] transition-colors">
+            Stores
+          </Link>
+          <span>/</span>
+          <span className="text-[#17201A] font-semibold truncate max-w-[200px]">
+            {store.name}
+          </span>
+        </nav>
+
+        {/* Store Profile Banner Card */}
+        <section aria-labelledby="store-title" className="bg-white border border-[#E2E8E3] rounded-3xl p-6 sm:p-8 overflow-hidden shadow-xs">
+          <div className="flex flex-col md:flex-row gap-6 lg:gap-8 items-start">
+            {/* Store Image */}
+            <div className="relative w-full md:w-56 h-36 sm:h-44 rounded-2xl bg-[#F8FAF7] border border-[#E2E8E3] overflow-hidden shrink-0">
+              <Image
+                src={store.image}
+                alt={store.name}
+                fill
+                sizes="(max-width: 768px) 100vw, 240px"
+                className="object-cover"
+                priority
+              />
+              <span
+                className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-full text-xs font-medium text-white shadow-xs ${
+                  store.isOpen ? 'bg-[#16A34A]' : 'bg-[#DC2626]'
+                }`}
+              >
+                {store.isOpen ? 'Open Now' : 'Closed'}
+              </span>
+            </div>
+
+            {/* Store Information */}
+            <div className="flex-1 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#166534]/10 text-[#166534]">
+                  {store.category}
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-[#F59E0B]/15 text-[#B45309]">
+                  ★ {store.rating} ({store.reviewCount} reviews)
+                </span>
+              </div>
+
+              <h1 id="store-title" className="text-2xl sm:text-3xl font-extrabold text-[#17201A] tracking-tight">
+                {store.name}
+              </h1>
+
+              <p className="text-xs sm:text-sm text-[#647067] max-w-2xl leading-relaxed">
+                {store.description}
+              </p>
+
+              {/* Meta details */}
+              <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-[#647067] border-t border-[#E2E8E3]">
+                <span className="flex items-center gap-1 font-medium text-[#17201A]">
+                  <span className="text-[#166534]">📍</span> {store.address}
+                </span>
+                <span className="flex items-center gap-1 font-semibold text-[#166534]">
+                  🚗 {store.distanceKm} km away
+                </span>
+                <span className="flex items-center gap-1">
+                  ⏱️ Delivery: <strong>{store.deliveryTimeMin}</strong>
+                </span>
+                {store.timing && (
+                  <span className="flex items-center gap-1">
+                    🕒 <strong>{store.timing}</strong>
+                  </span>
+                )}
+                {store.phone && (
+                  <span className="flex items-center gap-1 text-[#647067]">
+                    📞 {store.phone}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Hyperlocal Cart Policy Callout */}
+          <aside aria-label="VyaparHub Cart Rule" className="mt-6 p-3.5 bg-[#F8FAF7] border border-[#E2E8E3] rounded-2xl flex items-center gap-3 text-xs text-[#647067]">
+            <span className="text-base">ℹ️</span>
+            <p>
+              <strong className="text-[#17201A]">VyaparHub Single-Store Cart Rule:</strong> Your cart can contain products from only one local store at a time. Products added from {store.name} will be fulfilled together.
+            </p>
+          </aside>
+        </section>
+
+        {/* In-store Search & Category Filtering */}
+        <section aria-label="Store Catalog Filter" className="bg-white border border-[#E2E8E3] rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="w-full sm:max-w-md">
+              <SearchBar
+                placeholder={`Search in ${store.name}...`}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onClear={() => setSearchQuery('')}
+              />
+            </div>
+
+            <div className="flex items-center gap-4 self-start sm:self-auto text-xs">
+              <label className="inline-flex items-center gap-2 cursor-pointer font-medium text-[#17201A] select-none">
+                <input
+                  type="checkbox"
+                  checked={inStockOnly}
+                  onChange={(e) => setInStockOnly(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#166534] border-[#E2E8E3] focus:ring-[#166534]"
+                />
+                <span>In-Stock Only</span>
+              </label>
+
+              <span className="text-[#647067]">
+                Showing <strong>{filteredProducts.length}</strong> items
+              </span>
+            </div>
+          </div>
+
+          {/* Category Pills */}
+          {storeCategories.length > 2 && (
+            <div className="pt-2 border-t border-[#E2E8E3] flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <span className="text-xs font-medium text-[#647067] shrink-0 mr-1">Section:</span>
+              {storeCategories.map((cat) => {
+                const isSelected = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      isSelected
+                        ? 'bg-[#166534] text-white shadow-xs'
+                        : 'bg-[#F8FAF7] border border-[#E2E8E3] text-[#647067] hover:border-[#166534] hover:text-[#17201A]'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Products Grid */}
+        <section aria-label="Available Store Products">
+          {filteredProducts.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onAddToCart={handleAddToCart}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-[#E2E8E3] rounded-3xl p-10 text-center space-y-3 max-w-md mx-auto shadow-xs">
+              <div className="w-12 h-12 rounded-full bg-[#F8FAF7] border border-[#E2E8E3] text-[#647067] flex items-center justify-center mx-auto text-xl">
+                🔍
+              </div>
+              <h3 className="text-base font-bold text-[#17201A]">No products found</h3>
+              <p className="text-xs text-[#647067]">
+                No items in {store.name} matched your search or filters.
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('All');
+                  setInStockOnly(false);
+                }}
+              >
+                Reset Store Filters
+              </Button>
+            </div>
+          )}
+        </section>
+      </main>
+
+      <Footer />
+      <MobileNav cartItemCount={cartCount} />
+    </div>
+  );
+}

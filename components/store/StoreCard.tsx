@@ -1,31 +1,28 @@
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Store } from '@/types';
 
 interface StoreCardProps {
   store: Store;
   onClick?: (store: Store) => void;
+  href?: string;
   className?: string;
 }
 
 export const StoreCard: React.FC<StoreCardProps> = ({
   store,
   onClick,
+  href,
   className = '',
 }) => {
-  return (
+  const targetHref = href || `/stores/${store.id}`;
+
+  const content = (
     <article
       onClick={() => onClick?.(store)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick?.(store);
-        }
-      }}
       aria-label={`View store ${store.name}, ${store.distanceKm} kilometers away`}
-      className={`group flex flex-col bg-white border border-[#E2E8E3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-150 hover:border-[#166534] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] select-none ${className}`}
+      className={`group flex flex-col bg-white border border-[#E2E8E3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-150 hover:border-[#166534] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] select-none h-full ${className}`}
     >
       {/* Store Banner / Image */}
       <div className="relative w-full h-32 bg-[#F8FAF7] border-b border-[#E2E8E3] overflow-hidden">
@@ -97,7 +94,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({
             </span>
           </div>
 
-          <p className="text-xs text-[#647067] mb-2">{store.category}</p>
+          <p className="text-xs text-[#647067] mb-2 line-clamp-1">{store.category}</p>
         </div>
 
         {/* Delivery ETA & Address */}
@@ -125,5 +122,11 @@ export const StoreCard: React.FC<StoreCardProps> = ({
         </div>
       </div>
     </article>
+  );
+
+  return (
+    <Link href={targetHref} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] rounded-2xl">
+      {content}
+    </Link>
   );
 };

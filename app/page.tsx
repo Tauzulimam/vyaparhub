@@ -1,269 +1,263 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { MobileNav } from '@/components/layout/MobileNav';
-import { Button } from '@/components/ui/Button';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { Button } from '@/components/ui/Button';
 import { CategoryCard } from '@/components/ui/CategoryCard';
 import { ProductCard } from '@/components/product/ProductCard';
 import { StoreCard } from '@/components/store/StoreCard';
-import { mockCategories, mockProducts, mockStores } from '@/data/mockData';
-import { Category, Product, Store } from '@/types';
+import {
+  mockCategories,
+  mockStores,
+  getPopularProducts,
+  getBuyAgainProducts,
+} from '@/data/mockData';
+import { Product } from '@/types';
+import { useMockCart } from '@/lib/mockCart';
 
-export default function Home() {
-  const [cartCount, setCartCount] = useState<number>(2);
-  const [activeMobileTab, setActiveMobileTab] = useState<string>('home');
-  const [lastActionMessage, setLastActionMessage] = useState<string>(
-    'Tip: Click buttons or cards to test interactive states.'
-  );
-  const [searchOutput, setSearchOutput] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+export default function HomePage() {
+  const router = useRouter();
+  const { cartCount, incrementCart } = useMockCart();
+  const [cartFeedback, setCartFeedback] = useState<string | null>(null);
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('All');
+
+  const popularProducts = getPopularProducts();
+  const buyAgainProducts = getBuyAgainProducts();
+
+  // Filter popular products by tab
+  const filteredPopular =
+    activeCategoryFilter === 'All'
+      ? popularProducts
+      : popularProducts.filter((p) => p.category.includes(activeCategoryFilter));
 
   const handleAddToCart = (product: Product) => {
-    setCartCount((prev) => prev + 1);
-    setLastActionMessage(`Added 1x "${product.name}" from ${product.storeName} to cart.`);
+    incrementCart();
+    setCartFeedback(`Added "${product.name}" from ${product.storeName} to cart.`);
+    setTimeout(() => {
+      setCartFeedback(null);
+    }, 4000);
   };
 
-  const handleStoreClick = (store: Store) => {
-    setLastActionMessage(
-      `Selected store: "${store.name}" (${store.distanceKm} km away, ${store.deliveryTimeMin}).`
-    );
-  };
-
-  const handleCategoryClick = (category: Category) => {
-    setSelectedCategory(category.name);
-    setLastActionMessage(`Browsing category: "${category.name}" (${category.itemCount} items).`);
-  };
-
-  const handleSearch = (query: string) => {
-    setSearchOutput(query);
-    setLastActionMessage(
-      query ? `Search query submitted: "${query}"` : 'Search query cleared.'
-    );
+  const handleHeroSearch = (query: string) => {
+    if (query.trim()) {
+      router.push(`/products?q=${encodeURIComponent(query.trim())}`);
+    }
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
-      {/* 1. Header / Navbar */}
+      {/* 1. Header/Navbar */}
       <Navbar
         cartItemCount={cartCount}
         currentLocation="Sector 14, Main Market (0.4 km)"
-        onSearch={handleSearch}
         onCartClick={() =>
-          setLastActionMessage(`Cart clicked! Total items in cart: ${cartCount}`)
+          setCartFeedback(
+            cartCount > 0
+              ? `Cart contains ${cartCount} items. (Checkout is Phase 2C)`
+              : 'Your cart is currently empty. Add items from nearby stores below!'
+          )
         }
         onLocationClick={() =>
-          setLastActionMessage(
-            'Location selector clicked (Hyperlocal radius configured to ~5 km).'
-          )
+          setCartFeedback('Hyperlocal location: Sector 14, Gurugram (~5 km service radius).')
         }
       />
 
-      {/* Main Showcase Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12 pb-24 md:pb-12">
-        {/* Showcase Header Banner */}
-        <section aria-labelledby="showcase-heading" className="bg-white border border-[#E2E8E3] rounded-2xl p-6 sm:p-8 shadow-xs">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#E2E8E3] pb-6">
-            <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#166534]/10 text-[#166534] mb-2">
-                <span className="w-2 h-2 rounded-full bg-[#166534]" />
-                Phase 2A — Shared UI Foundation
-              </div>
-              <h1 id="showcase-heading" className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#17201A]">
-                VyaparHub Component Showcase
-              </h1>
-              <p className="text-sm text-[#647067] mt-1 max-w-2xl">
-                Visual verification of shared, reusable typed components built with Next.js,
-                TypeScript, and Tailwind CSS. (This is a component verification page, not the
-                final customer marketplace homepage).
-              </p>
-            </div>
-
-            {/* Interactive Feedback Pill */}
-            <div className="p-3 bg-[#F8FAF7] border border-[#E2E8E3] rounded-xl text-xs max-w-sm">
-              <span className="font-semibold text-[#166534] block mb-0.5">Live Component Action:</span>
-              <p className="text-[#17201A] truncate">{lastActionMessage}</p>
-            </div>
+      {/* Cart Notification Toast */}
+      {cartFeedback && (
+        <aside
+          aria-live="polite"
+          className="fixed top-20 right-4 z-50 max-w-sm p-3.5 bg-white border border-[#166534] rounded-xl shadow-lg flex items-center gap-3 animate-fade-in"
+        >
+          <div className="w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center shrink-0 text-xs font-bold">
+            ✓
           </div>
+          <p className="text-xs font-medium text-[#17201A]">{cartFeedback}</p>
+          <button
+            onClick={() => setCartFeedback(null)}
+            className="text-[#647067] hover:text-[#17201A] text-xs font-bold ml-auto"
+            aria-label="Dismiss notification"
+          >
+            ✕
+          </button>
+        </aside>
+      )}
 
-          {/* Design System Swatches */}
-          <div className="pt-6">
-            <h2 className="text-xs font-bold text-[#647067] uppercase tracking-wider mb-3">
-              Phase 2 Design System Palette
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-10 gap-2 text-center text-[10px]">
-              <div className="p-2 rounded-lg bg-[#166534] text-white font-medium">Primary<br/>#166534</div>
-              <div className="p-2 rounded-lg bg-[#14532D] text-white font-medium">Primary Dark<br/>#14532D</div>
-              <div className="p-2 rounded-lg bg-[#F59E0B] text-black font-medium">Accent<br/>#F59E0B</div>
-              <div className="p-2 rounded-lg bg-[#F8FAF7] border border-[#E2E8E3] text-[#17201A] font-medium">Background<br/>#F8FAF7</div>
-              <div className="p-2 rounded-lg bg-white border border-[#E2E8E3] text-[#17201A] font-medium">Surface<br/>#FFFFFF</div>
-              <div className="p-2 rounded-lg bg-[#17201A] text-white font-medium">Main Text<br/>#17201A</div>
-              <div className="p-2 rounded-lg bg-[#647067] text-white font-medium">Sec Text<br/>#647067</div>
-              <div className="p-2 rounded-lg bg-[#E2E8E3] text-[#17201A] font-medium">Border<br/>#E2E8E3</div>
-              <div className="p-2 rounded-lg bg-[#16A34A] text-white font-medium">Success<br/>#16A34A</div>
-              <div className="p-2 rounded-lg bg-[#DC2626] text-white font-medium">Error<br/>#DC2626</div>
+      {/* Main Content */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-12 pb-24 md:pb-16">
+        {/* 2. Hero Section */}
+        <section aria-label="Marketplace Welcome" className="relative rounded-3xl bg-gradient-to-b from-white to-[#F8FAF7] border border-[#E2E8E3] p-6 sm:p-10 lg:p-12 overflow-hidden shadow-xs">
+          <div className="max-w-3xl space-y-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-[#166534]/10 text-[#166534] border border-[#166534]/20">
+              <span className="w-2 h-2 rounded-full bg-[#166534] animate-pulse" />
+              Hyperlocal Multi-Vendor Marketplace • Within 5 km
             </div>
-          </div>
-        </section>
 
-        {/* 2. Button Showcase */}
-        <section aria-labelledby="buttons-heading" className="bg-white border border-[#E2E8E3] rounded-2xl p-6 sm:p-8 shadow-xs">
-          <div className="mb-6">
-            <h2 id="buttons-heading" className="text-lg font-bold text-[#17201A]">
-              1. Button Component (<code className="text-xs font-mono text-[#166534]">components/ui/Button</code>)
-            </h2>
-            <p className="text-xs text-[#647067]">
-              Fully accessible, typed button with variants, sizes, icon slots, disabled, and loading states.
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-[#17201A] leading-tight">
+              Your Neighborhood Stores, <br className="hidden sm:inline" />
+              <span className="text-[#166534]">Delivered In Minutes.</span>
+            </h1>
+
+            <p className="text-sm sm:text-base text-[#647067] leading-relaxed max-w-2xl">
+              Shop fresh dairy, daily groceries, medicines, bakery treats, books and electronics directly from trusted local retailers right around your corner.
             </p>
-          </div>
 
-          <div className="space-y-6">
-            {/* Variants */}
-            <div>
-              <h3 className="text-xs font-semibold text-[#647067] uppercase tracking-wider mb-3">Variants</h3>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button variant="primary" onClick={() => setLastActionMessage('Primary button clicked')}>
-                  Primary Button
-                </Button>
-                <Button variant="secondary" onClick={() => setLastActionMessage('Secondary button clicked')}>
-                  Secondary
-                </Button>
-                <Button variant="outline" onClick={() => setLastActionMessage('Outline button clicked')}>
-                  Outline
-                </Button>
-                <Button variant="ghost" onClick={() => setLastActionMessage('Ghost button clicked')}>
-                  Ghost
-                </Button>
-                <Button variant="danger" onClick={() => setLastActionMessage('Danger button clicked')}>
-                  Danger
-                </Button>
-              </div>
-            </div>
-
-            {/* Sizes & States */}
-            <div>
-              <h3 className="text-xs font-semibold text-[#647067] uppercase tracking-wider mb-3">Sizes & States</h3>
-              <div className="flex flex-wrap items-center gap-3">
-                <Button size="sm">Small (sm)</Button>
-                <Button size="md">Medium (md)</Button>
-                <Button size="lg">Large (lg)</Button>
-                <Button disabled>Disabled</Button>
-                <Button isLoading>Loading</Button>
-                <Button
-                  variant="outline"
-                  leftIcon={
-                    <svg className="w-4 h-4 text-[#166534]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                  }
-                >
-                  With Icon
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 3. Search Bar Showcase */}
-        <section aria-labelledby="search-heading" className="bg-white border border-[#E2E8E3] rounded-2xl p-6 sm:p-8 shadow-xs">
-          <div className="mb-4">
-            <h2 id="search-heading" className="text-lg font-bold text-[#17201A]">
-              2. Search Bar (<code className="text-xs font-mono text-[#166534]">components/ui/SearchBar</code>)
-            </h2>
-            <p className="text-xs text-[#647067]">
-              Accessible search input with search icon, clear button, and submit handler.
-            </p>
-          </div>
-
-          <div className="max-w-xl">
-            <SearchBar onSearch={handleSearch} />
-            {searchOutput && (
-              <p className="mt-2 text-xs text-[#166534] font-medium">
-                Active search term: &quot;{searchOutput}&quot;
-              </p>
-            )}
-          </div>
-        </section>
-
-        {/* 4. Category Cards Showcase */}
-        <section id="categories" aria-labelledby="categories-heading" className="bg-white border border-[#E2E8E3] rounded-2xl p-6 sm:p-8 shadow-xs">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 id="categories-heading" className="text-lg font-bold text-[#17201A]">
-                3. Category Card (<code className="text-xs font-mono text-[#166534]">components/ui/CategoryCard</code>)
-              </h2>
-              <p className="text-xs text-[#647067]">
-                Touch-friendly category selector displaying catalog category name and product counts.
-              </p>
-            </div>
-            {selectedCategory && (
-              <span className="text-xs font-semibold text-[#166534] px-2.5 py-1 rounded-full bg-[#166534]/10">
-                Selected: {selectedCategory}
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {mockCategories.map((category) => (
-              <CategoryCard
-                key={category.id}
-                category={category}
-                onClick={handleCategoryClick}
+            {/* Prominent Hero Search Bar */}
+            <div className="pt-2 max-w-2xl">
+              <SearchBar
+                placeholder="Search products or stores (e.g. Milk, Atta, Bread, Medicines, Earphones)..."
+                onSearch={handleHeroSearch}
+                className="shadow-sm"
               />
+
+              {/* Quick Suggestion Pills */}
+              <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-[#647067]">
+                <span className="font-medium text-[#17201A]">Popular searches:</span>
+                {['Amul Milk', 'Aashirvaad Atta', 'Bread', 'First Aid', 'boAt Earphones'].map(
+                  (tag) => (
+                    <Link
+                      key={tag}
+                      href={`/products?q=${encodeURIComponent(tag)}`}
+                      className="px-2.5 py-1 rounded-full bg-white border border-[#E2E8E3] hover:border-[#166534] hover:text-[#166534] transition-colors"
+                    >
+                      {tag}
+                    </Link>
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Hyperlocal Value Highlights */}
+            <div className="pt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-[#E2E8E3] text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#166534]/10 text-[#166534] flex items-center justify-center font-bold text-sm shrink-0">
+                  ⚡
+                </div>
+                <div>
+                  <strong className="block font-semibold text-[#17201A]">15–30 Min Delivery</strong>
+                  <span className="text-[#647067]">Hyperlocal ~5 km speed</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#F59E0B]/15 text-[#B45309] flex items-center justify-center font-bold text-sm shrink-0">
+                  🏪
+                </div>
+                <div>
+                  <strong className="block font-semibold text-[#17201A]">Verified Local Stores</strong>
+                  <span className="text-[#647067]">Family kirana & retailers</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#16A34A]/10 text-[#16A34A] flex items-center justify-center font-bold text-sm shrink-0">
+                  💵
+                </div>
+                <div>
+                  <strong className="block font-semibold text-[#17201A]">Cash on Delivery</strong>
+                  <span className="text-[#647067]">Pay upon safe arrival</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* 3. Category Browsing */}
+        <section aria-labelledby="categories-heading" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 id="categories-heading" className="text-xl sm:text-2xl font-bold text-[#17201A]">
+                Shop by Category
+              </h2>
+              <p className="text-xs sm:text-sm text-[#647067]">
+                Master catalog items available across your neighborhood stores
+              </p>
+            </div>
+            <Link
+              href="/products"
+              className="text-xs sm:text-sm font-semibold text-[#166534] hover:text-[#14532D] flex items-center gap-1"
+            >
+              All Products <span>→</span>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4">
+            {mockCategories.map((category) => (
+              <CategoryCard key={category.id} category={category} />
             ))}
           </div>
         </section>
 
-        {/* 5. Store Cards Showcase */}
-        <section id="stores" aria-labelledby="stores-heading" className="bg-white border border-[#E2E8E3] rounded-2xl p-6 sm:p-8 shadow-xs">
-          <div className="mb-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <h2 id="stores-heading" className="text-lg font-bold text-[#17201A]">
-                  4. Local Store Card (<code className="text-xs font-mono text-[#166534]">components/store/StoreCard</code>)
+        {/* 4. Nearby Local Stores Section */}
+        <section aria-labelledby="stores-heading" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 id="stores-heading" className="text-xl sm:text-2xl font-bold text-[#17201A]">
+                  Nearby Local Stores
                 </h2>
-                <p className="text-xs text-[#647067]">
-                  Hyperlocal store display highlighting distance (km), ETA, rating, and real-time open status.
-                </p>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#166534]/10 text-[#166534]">
+                  Near Sector 14
+                </span>
               </div>
-              <span className="text-xs font-semibold text-[#647067] self-start sm:self-auto">
-                Showing {mockStores.length} nearby stores
-              </span>
+              <p className="text-xs sm:text-sm text-[#647067]">
+                Family kirana shops, dispensaries, bakeries and stores within your delivery zone
+              </p>
             </div>
+            <Link
+              href="/stores"
+              className="text-xs sm:text-sm font-semibold text-[#166534] hover:text-[#14532D] flex items-center gap-1"
+            >
+              View All ({mockStores.length}) <span>→</span>
+            </Link>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {mockStores.map((store) => (
-              <StoreCard
-                key={store.id}
-                store={store}
-                onClick={handleStoreClick}
-              />
+            {mockStores.slice(0, 4).map((store) => (
+              <StoreCard key={store.id} store={store} />
             ))}
           </div>
         </section>
 
-        {/* 6. Product Cards Showcase */}
-        <section aria-labelledby="products-heading" className="bg-white border border-[#E2E8E3] rounded-2xl p-6 sm:p-8 shadow-xs">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6">
+        {/* 5. Popular Near You (with category filter tabs) */}
+        <section aria-labelledby="popular-heading" className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 id="products-heading" className="text-lg font-bold text-[#17201A]">
-                5. Product Card (<code className="text-xs font-mono text-[#166534]">components/product/ProductCard</code>)
+              <h2 id="popular-heading" className="text-xl sm:text-2xl font-bold text-[#17201A]">
+                Popular Near You
               </h2>
-              <p className="text-xs text-[#647067]">
-                Hyperlocal item card linking MasterProduct information with store-specific price, discount, and stock.
+              <p className="text-xs sm:text-sm text-[#647067]">
+                High-demand items sold by local vendors in your area
               </p>
             </div>
-            <div className="text-xs text-[#647067] self-start sm:self-auto flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
-              <span>Cart Count: <strong className="text-[#17201A]">{cartCount} items</strong></span>
+
+            {/* Filter Chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+              {['All', 'Dairy', 'Grocery', 'Bakery', 'Pharmacy', 'Electronics'].map((filter) => {
+                const isSelected = activeCategoryFilter === filter;
+                return (
+                  <button
+                    key={filter}
+                    onClick={() => setActiveCategoryFilter(filter)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                      isSelected
+                        ? 'bg-[#166534] text-white shadow-xs'
+                        : 'bg-white border border-[#E2E8E3] text-[#647067] hover:border-[#166534] hover:text-[#17201A]'
+                    }`}
+                  >
+                    {filter}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            {mockProducts.map((product) => (
+            {filteredPopular.slice(0, 10).map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
@@ -272,20 +266,104 @@ export default function Home() {
             ))}
           </div>
         </section>
+
+        {/* 6. Buy Again / Daily Staples */}
+        <section aria-labelledby="buyagain-heading" className="bg-white border border-[#E2E8E3] rounded-3xl p-6 sm:p-8 space-y-4 shadow-xs">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#F59E0B]/15 text-[#B45309] flex items-center justify-center font-bold text-sm">
+                ↻
+              </div>
+              <div>
+                <h2 id="buyagain-heading" className="text-lg sm:text-xl font-bold text-[#17201A]">
+                  Buy Again • Daily Essentials
+                </h2>
+                <p className="text-xs text-[#647067]">
+                  Quickly reorder daily staples like milk, bread, eggs, and flour from your regular stores
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/products"
+              className="text-xs sm:text-sm font-semibold text-[#166534] hover:text-[#14532D]"
+            >
+              Browse All
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 pt-2">
+            {buyAgainProducts.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAddToCart={handleAddToCart}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* 7. VyaparHub Local Mission & Vendor CTA */}
+        <section aria-label="About VyaparHub Platform" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Card 1: Customer Value */}
+          <div className="bg-white border border-[#E2E8E3] rounded-3xl p-6 sm:p-8 flex flex-col justify-between space-y-4 shadow-xs">
+            <div className="space-y-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#166534]/10 text-[#166534]">
+                Why Shop Hyperlocal?
+              </span>
+              <h3 className="text-xl font-bold text-[#17201A]">
+                Empowering Neighborhood Retailers
+              </h3>
+              <p className="text-xs sm:text-sm text-[#647067] leading-relaxed">
+                When you order on VyaparHub, your purchase goes directly to verified local merchants in your sector. Enjoy transparent local pricing, authentic brands from our Master Product Catalog, and fast 15–30 minute delivery.
+              </p>
+            </div>
+            <div className="pt-2 flex items-center gap-3">
+              <Link href="/stores">
+                <Button variant="primary" size="sm">
+                  Explore Nearby Stores
+                </Button>
+              </Link>
+              <Link href="/products">
+                <Button variant="outline" size="sm">
+                  Search Products
+                </Button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Card 2: Local Storekeeper Call to Action */}
+          <div className="bg-gradient-to-br from-[#166534] to-[#14532D] text-white rounded-3xl p-6 sm:p-8 flex flex-col justify-between space-y-4 shadow-xs">
+            <div className="space-y-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/20 text-white">
+                For Local Store Owners
+              </span>
+              <h3 className="text-xl font-bold text-white">
+                Sell to Hundreds of Nearby Customers
+              </h3>
+              <p className="text-xs sm:text-sm text-white/80 leading-relaxed">
+                No need for expensive product photography or entering barcode details from scratch. Pick pre-verified items from our central Master Product Catalog, set your price and stock, and start fulfilling neighborhood orders.
+              </p>
+            </div>
+            <div className="pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  setCartFeedback('Vendor registration is part of Phase 4/5. Stay tuned!')
+                }
+              >
+                Register Your Store (Coming in Phase 5)
+              </Button>
+            </div>
+          </div>
+        </section>
       </main>
 
-      {/* 7. Footer */}
+      {/* 8. Footer */}
       <Footer />
 
-      {/* 8. Mobile Bottom Navigation (Fixed on mobile viewports) */}
-      <MobileNav
-        cartItemCount={cartCount}
-        activeTab={activeMobileTab}
-        onTabChange={(tab) => {
-          setActiveMobileTab(tab);
-          setLastActionMessage(`Mobile nav switched to "${tab}" tab.`);
-        }}
-      />
+      {/* 9. Mobile Bottom Navigation */}
+      <MobileNav cartItemCount={cartCount} />
     </div>
   );
 }

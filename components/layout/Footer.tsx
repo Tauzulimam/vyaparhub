@@ -32,19 +32,17 @@ export const Footer: React.FC = () => {
             </h4>
             <ul className="space-y-2 text-xs text-[#647067]">
               <li>
-                <Link href="#stores" className="hover:text-[#166534] transition-colors">
+                <Link href="/stores" className="hover:text-[#166534] transition-colors">
                   Nearby Local Stores
                 </Link>
               </li>
               <li>
-                <Link href="#categories" className="hover:text-[#166534] transition-colors">
+                <Link href="/products" className="hover:text-[#166534] transition-colors">
                   Browse Product Categories
                 </Link>
               </li>
               <li>
-                <Link href="#orders" className="hover:text-[#166534] transition-colors">
-                  Order Tracking
-                </Link>
+                <span className="text-[#647067]">Order Tracking (Phase 2C)</span>
               </li>
               <li>
                 <span className="text-[#647067]/80">Cash on Delivery Available</span>
@@ -98,7 +96,7 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <span className="inline-flex items-center text-[11px] font-semibold text-[#166534]">
-                  Phase 2A — Shared UI Foundation
+                  Phase 2B — Customer Marketplace UI
                 </span>
               </li>
             </ul>

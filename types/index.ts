@@ -11,6 +11,10 @@ export interface Product {
   storeName: string;
   inStock: boolean;
   quantityAvailable?: number;
+  isPopular?: boolean;
+  isBuyAgain?: boolean;
+  rating?: number;
+  description?: string;
 }
 
 export interface Store {
@@ -24,6 +28,10 @@ export interface Store {
   isOpen: boolean;
   image: string;
   address: string;
+  phone?: string;
+  timing?: string;
+  description?: string;
+  categoriesOffered?: string[];
 }
 
 export interface Category {
@@ -32,6 +40,7 @@ export interface Category {
   slug: string;
   itemCount: number;
   image: string;
+  description?: string;
 }
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';

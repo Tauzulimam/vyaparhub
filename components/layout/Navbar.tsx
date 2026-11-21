@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Button } from '@/components/ui/Button';
+import { useMockCart } from '@/lib/mockCart';
 
 interface NavbarProps {
   cartItemCount?: number;
@@ -14,20 +16,31 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  cartItemCount = 0,
+  cartItemCount,
   currentLocation = 'Sector 14, Main Market',
   onSearch,
   onCartClick,
   onLocationClick,
 }) => {
+  const router = useRouter();
+  const { cartCount: sharedCartCount } = useMockCart();
+  const effectiveCartCount = cartItemCount !== undefined ? cartItemCount : sharedCartCount;
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+
+  const handleSearchSubmit = (query: string) => {
+    if (onSearch) {
+      onSearch(query);
+    } else if (query.trim()) {
+      router.push(`/products?q=${encodeURIComponent(query.trim())}`);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-30 w-full bg-white border-b border-[#E2E8E3] shadow-xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 gap-3 sm:gap-6">
           {/* Brand Logo & Hyperlocal Location */}
-          <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+          <div className="flex items-center gap-3 sm:gap-5 shrink-0">
             <Link
               href="/"
               className="flex items-center gap-2 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] rounded-lg"
@@ -94,11 +107,11 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Search Bar */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-2">
-            <SearchBar onSearch={onSearch} />
+          <div className="hidden md:flex flex-1 max-w-lg mx-2">
+            <SearchBar onSearch={handleSearchSubmit} />
           </div>
 
-          {/* Right Actions: Search toggle (mobile), Stores, Cart, Sign In */}
+          {/* Right Navigation & Actions */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Mobile Search Toggle */}
             <button
@@ -123,9 +136,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               </svg>
             </button>
 
-            {/* Nearby Stores Quick Link */}
+            {/* Stores Link */}
             <Link
-              href="#stores"
+              href="/stores"
               className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#17201A] hover:text-[#166534] hover:bg-[#F8FAF7] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
             >
               <svg
@@ -145,12 +158,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Stores</span>
             </Link>
 
+            {/* Products Link */}
+            <Link
+              href="/products"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#17201A] hover:text-[#166534] hover:bg-[#F8FAF7] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
+            >
+              <svg
+                className="w-4 h-4 text-[#166534]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                />
+              </svg>
+              <span>Products</span>
+            </Link>
+
             {/* Cart Button */}
             <Button
               variant="outline"
               size="md"
               onClick={onCartClick}
-              aria-label={`Shopping cart with ${cartItemCount} items`}
+              aria-label={`Shopping cart with ${effectiveCartCount} items`}
               className="relative !px-3 sm:!px-4"
               leftIcon={
                 <svg
@@ -170,16 +205,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               }
             >
               <span className="hidden sm:inline">Cart</span>
-              {cartItemCount > 0 && (
+              {effectiveCartCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 rounded-full text-xs font-bold bg-[#166534] text-white">
-                  {cartItemCount}
+                  {effectiveCartCount}
                 </span>
               )}
-            </Button>
-
-            {/* Sign In Button */}
-            <Button variant="primary" size="md" className="hidden sm:inline-flex">
-              Sign In
             </Button>
           </div>
         </div>
@@ -187,7 +217,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Mobile Search Dropdown / Bar */}
         {isMobileSearchOpen && (
           <div className="pb-3 md:hidden">
-            <SearchBar onSearch={onSearch} autoFocus />
+            <SearchBar onSearch={handleSearchSubmit} autoFocus />
           </div>
         )}
       </div>
