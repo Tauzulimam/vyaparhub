@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200" fill="none">
+  <rect width="200" height="200" rx="16" fill="#F8FAF7"/>
+  <rect x="2" y="2" width="196" height="196" rx="14" stroke="#E2E8E3" stroke-width="2"/>
+  <rect x="60" y="60" width="34" height="34" rx="8" fill="#166534" fill-opacity="0.1" stroke="#166534" stroke-width="2"/>
+  <rect x="106" y="60" width="34" height="34" rx="8" fill="#F59E0B" fill-opacity="0.1" stroke="#F59E0B" stroke-width="2"/>
+  <rect x="60" y="106" width="34" height="34" rx="8" fill="#F59E0B" fill-opacity="0.1" stroke="#F59E0B" stroke-width="2"/>
+  <rect x="106" y="106" width="34" height="34" rx="8" fill="#166534" fill-opacity="0.1" stroke="#166534" stroke-width="2"/>
+  <text x="100" y="165" text-anchor="middle" fill="#17201A" font-family="system-ui, sans-serif" font-size="12" font-weight="600">Category</text>
+</svg>

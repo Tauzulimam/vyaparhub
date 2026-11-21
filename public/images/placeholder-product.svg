@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" fill="none">
+  <rect width="400" height="400" rx="16" fill="#F8FAF7"/>
+  <rect x="2" y="2" width="396" height="396" rx="14" stroke="#E2E8E3" stroke-width="2"/>
+  <circle cx="200" cy="180" r="64" fill="#FFFFFF" stroke="#E2E8E3" stroke-width="2"/>
+  <path d="M175 180H225M200 155V205" stroke="#166534" stroke-width="3" stroke-linecap="round"/>
+  <path d="M165 215C165 205 175 200 200 200C225 200 235 205 235 215V225H165V215Z" fill="#166534" fill-opacity="0.1"/>
+  <text x="200" y="275" text-anchor="middle" fill="#647067" font-family="system-ui, sans-serif" font-size="14" font-weight="500">Product Image</text>
+  <text x="200" y="295" text-anchor="middle" fill="#166534" font-family="system-ui, sans-serif" font-size="12" font-weight="600">VyaparHub Master Catalog</text>
+</svg>
