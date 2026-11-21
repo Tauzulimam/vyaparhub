@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" fill="none">
+  <rect width="400" height="400" rx="24" fill="#F8FAF7"/>
+  <rect x="6" y="6" width="388" height="388" rx="20" stroke="#E2E8E3" stroke-width="2"/>
+  <circle cx="200" cy="195" r="118" fill="#B45309" fill-opacity="0.08"/>
+  <!-- Egg Tray -->
+  <ellipse cx="145" cy="182" rx="28" ry="36" fill="#F59E0B" fill-opacity="0.28" stroke="#B45309" stroke-width="3.5"/>
+  <ellipse cx="200" cy="176" rx="30" ry="38" fill="#F59E0B" fill-opacity="0.35" stroke="#B45309" stroke-width="3.5"/>
+  <ellipse cx="255" cy="182" rx="28" ry="36" fill="#F59E0B" fill-opacity="0.28" stroke="#B45309" stroke-width="3.5"/>
+  <path d="M96 196H304L286 254C282 266 270 274 256 274H144C130 274 118 266 114 254L96 196Z" fill="#FFFFFF" stroke="#B45309" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M110 224H290" stroke="#E2E8E3" stroke-width="3"/>
+  <rect x="148" y="288" width="104" height="22" rx="11" fill="#B45309"/>
+  <text x="200" y="303" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="700">FARM FRESH EGGS</text>
+</svg>

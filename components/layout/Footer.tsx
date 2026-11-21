@@ -66,23 +66,28 @@ export const Footer: React.FC = () => {
             </h4>
             <ul className="space-y-2 text-xs text-[#647067]">
               <li>
-                <Link href="#vendor" className="hover:text-[#166534] transition-colors">
+                <Link href="/vendor" className="hover:text-[#166534] transition-colors">
+                  Vendor Portal Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link href="/vendor/stores/new" className="hover:text-[#166534] transition-colors">
                   Register Your Store
                 </Link>
               </li>
               <li>
-                <Link href="#vendor" className="hover:text-[#166534] transition-colors">
+                <Link href="/vendor/catalog" className="hover:text-[#166534] transition-colors">
                   Master Product Catalog
                 </Link>
               </li>
               <li>
-                <Link href="#vendor" className="hover:text-[#166534] transition-colors">
-                  Stock & Price Management
+                <Link href="/vendor/inventory" className="hover:text-[#166534] transition-colors">
+                  Stock &amp; Price Management
                 </Link>
               </li>
               <li>
-                <Link href="#vendor" className="hover:text-[#166534] transition-colors">
-                  Store Subscriptions
+                <Link href="/vendor/subscription" className="hover:text-[#166534] transition-colors">
+                  Store Subscriptions &amp; Billing
                 </Link>
               </li>
             </ul>
@@ -91,21 +96,25 @@ export const Footer: React.FC = () => {
           {/* Platform / Project */}
           <div className="space-y-2.5">
             <h4 className="text-xs font-bold text-[#17201A] uppercase tracking-wider">
-              VyaparHub Project
+              VyaparHub Portals
             </h4>
             <ul className="space-y-2 text-xs text-[#647067]">
+              <li>
+                <Link href="/admin" className="font-semibold text-[#166534] hover:underline">
+                  Admin Console &amp; Analytics →
+                </Link>
+              </li>
+              <li>
+                <Link href="/vendor" className="font-semibold text-[#B45309] hover:underline">
+                  Vendor Portal &amp; Orders →
+                </Link>
+              </li>
               <li>
                 <span className="text-[#17201A] font-medium">Final Year Engineering Project</span>
               </li>
               <li>
-                <span>Architecture: Next.js App Router</span>
-              </li>
-              <li>
-                <span>Multi-Vendor Hyperlocal Design</span>
-              </li>
-              <li>
                 <span className="inline-flex items-center text-[11px] font-semibold text-[#166534]">
-                  Phase 2C — Customer Transaction UI
+                  Phase 2 — Complete Frontend Prototype
                 </span>
               </li>
             </ul>

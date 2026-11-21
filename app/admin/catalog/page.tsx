@@ -19,16 +19,52 @@ type CatalogViewMode = 'TABLE' | 'GRID';
 
 const MOCK_IMAGE_PRESETS: { label: string; path: string }[] = [
   {
-    label: 'Standard Product Placeholder',
+    label: 'Grocery — Staples, Flour & Grains',
+    path: '/images/products/atta-grains.svg',
+  },
+  {
+    label: 'Grocery — Cooking Oil, Spices & Noodles',
+    path: '/images/products/cooking-oil-spices.svg',
+  },
+  {
+    label: 'Dairy — Fresh Milk Pouch / Bottle',
+    path: '/images/products/dairy-milk.svg',
+  },
+  {
+    label: 'Dairy — Paneer, Curd & Table Butter',
+    path: '/images/products/dairy-paneer-curd.svg',
+  },
+  {
+    label: 'Dairy — Farm Fresh Eggs Pack',
+    path: '/images/products/farm-eggs.svg',
+  },
+  {
+    label: 'Bakery — Bread, Toast & Biscuits',
+    path: '/images/products/bakery-bread.svg',
+  },
+  {
+    label: 'Pharmacy — Wellness, Antiseptic & ORS',
+    path: '/images/products/pharmacy-care.svg',
+  },
+  {
+    label: 'Stationery — Notebooks & Office Pens',
+    path: '/images/products/stationery-supplies.svg',
+  },
+  {
+    label: 'Electronics — Earphones, Cables & Bulbs',
+    path: '/images/products/electronics-accessories.svg',
+  },
+  {
+    label: 'Pet Care — Dog & Cat Nutrition',
+    path: '/images/products/pet-nutrition.svg',
+  },
+  {
+    label: 'Home & Hygiene — Detergent, Soap & Dishwash',
+    path: '/images/products/household-cleaning.svg',
+  },
+  {
+    label: 'Generic Fallback Product Placeholder',
     path: '/images/placeholder-product.svg',
-  },
-  {
-    label: 'Category Packaged Goods Placeholder',
-    path: '/images/placeholder-category.svg',
-  },
-  {
-    label: 'Storefront Supply Placeholder',
-    path: '/images/placeholder-store.svg',
   },
 ];
 

@@ -14,6 +14,21 @@ const IMG = '/images/placeholder-product.svg';
 export const VENDOR_STORE_ID = 'store-1';
 export const SECOND_STORE_ID = 'vstore-2';
 
+export const PRODUCT_IMAGES = {
+  GRAINS: '/images/products/atta-grains.svg',
+  OIL_SPICES: '/images/products/cooking-oil-spices.svg',
+  MILK: '/images/products/dairy-milk.svg',
+  PANEER_CURD: '/images/products/dairy-paneer-curd.svg',
+  EGGS: '/images/products/farm-eggs.svg',
+  BAKERY: '/images/products/bakery-bread.svg',
+  PHARMACY: '/images/products/pharmacy-care.svg',
+  STATIONERY: '/images/products/stationery-supplies.svg',
+  ELECTRONICS: '/images/products/electronics-accessories.svg',
+  PETS: '/images/products/pet-nutrition.svg',
+  HOUSEHOLD: '/images/products/household-cleaning.svg',
+  FALLBACK: IMG,
+} as const;
+
 export const STORE_CATEGORIES = [
   'Daily Grocery & Staples',
   'Dairy & Fresh Sweets',
@@ -76,37 +91,38 @@ function mp(
   category: string,
   unit: string,
   mrp: number,
-  description: string
+  description: string,
+  image: string = IMG
 ): MasterProduct {
-  return { id, name, brand, category, description, unit, mrp, image: IMG, active: true };
+  return { id, name, brand, category, description, unit, mrp, image, active: true };
 }
 
 // Admin-controlled master catalog (shared product information + images).
 export const masterCatalog: MasterProduct[] = [
-  mp('mc-1', 'Aashirvaad Shudh Chakki Atta', 'Aashirvaad', 'Daily Grocery & Staples', '5 kg bag', 265, '100% whole wheat flour, stone chakki ground.'),
-  mp('mc-2', 'Fortune Sunlite Refined Sunflower Oil', 'Fortune', 'Daily Grocery & Staples', '1 L pouch', 155, 'Light cooking oil enriched with Vitamins A and D.'),
-  mp('mc-3', 'Tata Salt Vacuum Evaporated', 'Tata', 'Daily Grocery & Staples', '1 kg pack', 28, 'Iodized vacuum evaporated salt.'),
-  mp('mc-4', 'Daawat Rozana Gold Basmati Rice', 'Daawat', 'Daily Grocery & Staples', '5 kg bag', 440, 'Medium-grain basmati for everyday meals.'),
-  mp('mc-5', 'Tata Sampann Toor Dal', 'Tata Sampann', 'Daily Grocery & Staples', '1 kg pack', 190, 'Unpolished protein-rich arhar dal.'),
-  mp('mc-6', 'Amul Taaza Homogenised Toned Milk', 'Amul', 'Dairy & Fresh Sweets', '500 ml pouch', 32, 'Pasteurized toned milk, 3.0% fat.'),
-  mp('mc-7', 'Mother Dairy Fresh Paneer', 'Mother Dairy', 'Dairy & Fresh Sweets', '200 g pack', 95, 'Soft, wholesome cottage cheese.'),
-  mp('mc-8', 'Farm Fresh Brown Eggs', 'Farm Fresh', 'Dairy & Fresh Sweets', '6 pcs pack', 65, 'Protein-rich farm eggs.'),
-  mp('mc-9', 'Amul Salted Butter', 'Amul', 'Dairy & Fresh Sweets', '100 g pack', 58, 'Pasteurized table butter.'),
-  mp('mc-10', 'Mother Dairy Classic Curd', 'Mother Dairy', 'Dairy & Fresh Sweets', '400 g cup', 40, 'Thick, creamy set curd.'),
-  mp('mc-11', 'Britannia 100% Whole Wheat Bread', 'Britannia', 'Bakery & Confectionery', '400 g loaf', 50, 'Zero maida brown bread.'),
-  mp('mc-12', 'Parle-G Original Gluco Biscuits', 'Parle', 'Bakery & Confectionery', '800 g family pack', 90, 'Classic glucose biscuits.'),
-  mp('mc-13', 'Britannia Good Day Butter Cookies', 'Britannia', 'Bakery & Confectionery', '200 g pack', 40, 'Buttery baked cookies.'),
-  mp('mc-14', 'Dettol Antiseptic Liquid Disinfectant', 'Dettol', 'Pharmacy & Wellness', '250 ml bottle', 120, 'Antiseptic liquid for wound care and hygiene.'),
-  mp('mc-15', 'Cipla ORS Electro-B Electrolyte Drink', 'Cipla', 'Pharmacy & Wellness', '200 ml tetra pack', 35, 'Ready-to-drink electrolyte.'),
-  mp('mc-16', 'Classmate Spiral Notebooks Pack', 'Classmate', 'Stationery & Books', 'Pack of 3 (180 pgs)', 180, 'Spiral softcover notebooks.'),
-  mp('mc-17', 'Hauser XO Super Smooth Ball Pens', 'Hauser', 'Stationery & Books', 'Pack of 5 (Blue)', 50, 'Smooth-flow ball pens.'),
-  mp('mc-18', 'Portronics Braided Type-C Cable', 'Portronics', 'Electronics & Mobile', '1.2 m cable', 399, 'Fast-charging braided cable.'),
-  mp('mc-19', 'Pedigree Adult Chicken & Veg Dog Food', 'Pedigree', 'Pet Supplies & Care', '1.2 kg pouch', 375, 'Balanced canine nutrition.'),
-  mp('mc-20', 'Surf Excel Easy Wash Detergent Powder', 'Surf Excel', 'General Store & Home Needs', '1 kg pack', 155, 'Superfine powder for tough stains.'),
-  mp('mc-21', 'Dettol Original Bathing Soap', 'Dettol', 'General Store & Home Needs', 'Pack of 3 (125 g each)', 145, 'Germ protection bathing soap.'),
-  mp('mc-22', 'Vim Dishwash Gel Lemon', 'Vim', 'General Store & Home Needs', '500 ml bottle', 105, 'Lemon dishwash liquid gel.'),
-  mp('mc-23', 'Colgate Strong Teeth Toothpaste', 'Colgate', 'General Store & Home Needs', '200 g tube', 110, 'Calcium-boost cavity protection.'),
-  mp('mc-24', 'Maggi 2-Minute Masala Noodles', 'Nestlé', 'Daily Grocery & Staples', 'Pack of 4 (70 g each)', 56, 'Instant masala noodles.'),
+  mp('mc-1', 'Aashirvaad Shudh Chakki Atta', 'Aashirvaad', 'Daily Grocery & Staples', '5 kg bag', 265, '100% whole wheat flour, stone chakki ground.', PRODUCT_IMAGES.GRAINS),
+  mp('mc-2', 'Fortune Sunlite Refined Sunflower Oil', 'Fortune', 'Daily Grocery & Staples', '1 L pouch', 155, 'Light cooking oil enriched with Vitamins A and D.', PRODUCT_IMAGES.OIL_SPICES),
+  mp('mc-3', 'Tata Salt Vacuum Evaporated', 'Tata', 'Daily Grocery & Staples', '1 kg pack', 28, 'Iodized vacuum evaporated salt.', PRODUCT_IMAGES.OIL_SPICES),
+  mp('mc-4', 'Daawat Rozana Gold Basmati Rice', 'Daawat', 'Daily Grocery & Staples', '5 kg bag', 440, 'Medium-grain basmati for everyday meals.', PRODUCT_IMAGES.GRAINS),
+  mp('mc-5', 'Tata Sampann Toor Dal', 'Tata Sampann', 'Daily Grocery & Staples', '1 kg pack', 190, 'Unpolished protein-rich arhar dal.', PRODUCT_IMAGES.GRAINS),
+  mp('mc-6', 'Amul Taaza Homogenised Toned Milk', 'Amul', 'Dairy & Fresh Sweets', '500 ml pouch', 32, 'Pasteurized toned milk, 3.0% fat.', PRODUCT_IMAGES.MILK),
+  mp('mc-7', 'Mother Dairy Fresh Paneer', 'Mother Dairy', 'Dairy & Fresh Sweets', '200 g pack', 95, 'Soft, wholesome cottage cheese.', PRODUCT_IMAGES.PANEER_CURD),
+  mp('mc-8', 'Farm Fresh Brown Eggs', 'Farm Fresh', 'Dairy & Fresh Sweets', '6 pcs pack', 65, 'Protein-rich farm eggs.', PRODUCT_IMAGES.EGGS),
+  mp('mc-9', 'Amul Salted Butter', 'Amul', 'Dairy & Fresh Sweets', '100 g pack', 58, 'Pasteurized table butter.', PRODUCT_IMAGES.PANEER_CURD),
+  mp('mc-10', 'Mother Dairy Classic Curd', 'Mother Dairy', 'Dairy & Fresh Sweets', '400 g cup', 40, 'Thick, creamy set curd.', PRODUCT_IMAGES.PANEER_CURD),
+  mp('mc-11', 'Britannia 100% Whole Wheat Bread', 'Britannia', 'Bakery & Confectionery', '400 g loaf', 50, 'Zero maida brown bread.', PRODUCT_IMAGES.BAKERY),
+  mp('mc-12', 'Parle-G Original Gluco Biscuits', 'Parle', 'Bakery & Confectionery', '800 g family pack', 90, 'Classic glucose biscuits.', PRODUCT_IMAGES.BAKERY),
+  mp('mc-13', 'Britannia Good Day Butter Cookies', 'Britannia', 'Bakery & Confectionery', '200 g pack', 40, 'Buttery baked cookies.', PRODUCT_IMAGES.BAKERY),
+  mp('mc-14', 'Dettol Antiseptic Liquid Disinfectant', 'Dettol', 'Pharmacy & Wellness', '250 ml bottle', 120, 'Antiseptic liquid for wound care and hygiene.', PRODUCT_IMAGES.PHARMACY),
+  mp('mc-15', 'Cipla ORS Electro-B Electrolyte Drink', 'Cipla', 'Pharmacy & Wellness', '200 ml tetra pack', 35, 'Ready-to-drink electrolyte.', PRODUCT_IMAGES.PHARMACY),
+  mp('mc-16', 'Classmate Spiral Notebooks Pack', 'Classmate', 'Stationery & Books', 'Pack of 3 (180 pgs)', 180, 'Spiral softcover notebooks.', PRODUCT_IMAGES.STATIONERY),
+  mp('mc-17', 'Hauser XO Super Smooth Ball Pens', 'Hauser', 'Stationery & Books', 'Pack of 5 (Blue)', 50, 'Smooth-flow ball pens.', PRODUCT_IMAGES.STATIONERY),
+  mp('mc-18', 'Portronics Braided Type-C Cable', 'Portronics', 'Electronics & Mobile', '1.2 m cable', 399, 'Fast-charging braided cable.', PRODUCT_IMAGES.ELECTRONICS),
+  mp('mc-19', 'Pedigree Adult Chicken & Veg Dog Food', 'Pedigree', 'Pet Supplies & Care', '1.2 kg pouch', 375, 'Balanced canine nutrition.', PRODUCT_IMAGES.PETS),
+  mp('mc-20', 'Surf Excel Easy Wash Detergent Powder', 'Surf Excel', 'General Store & Home Needs', '1 kg pack', 155, 'Superfine powder for tough stains.', PRODUCT_IMAGES.HOUSEHOLD),
+  mp('mc-21', 'Dettol Original Bathing Soap', 'Dettol', 'General Store & Home Needs', 'Pack of 3 (125 g each)', 145, 'Germ protection bathing soap.', PRODUCT_IMAGES.HOUSEHOLD),
+  mp('mc-22', 'Vim Dishwash Gel Lemon', 'Vim', 'General Store & Home Needs', '500 ml bottle', 105, 'Lemon dishwash liquid gel.', PRODUCT_IMAGES.HOUSEHOLD),
+  mp('mc-23', 'Colgate Strong Teeth Toothpaste', 'Colgate', 'General Store & Home Needs', '200 g tube', 110, 'Calcium-boost cavity protection.', PRODUCT_IMAGES.HOUSEHOLD),
+  mp('mc-24', 'Maggi 2-Minute Masala Noodles', 'Nestlé', 'Daily Grocery & Staples', 'Pack of 4 (70 g each)', 56, 'Instant masala noodles.', PRODUCT_IMAGES.OIL_SPICES),
 ];
 
 export const masterCategories: string[] = Array.from(new Set(masterCatalog.map((p) => p.category)));
@@ -150,7 +166,8 @@ const customerAddress = (id: string, name: string, phone: string, line: string, 
 });
 
 function item(id: string, productId: string, name: string, brand: string, unit: string, price: number, mrp: number, quantity: number): OrderItem {
-  return { id, productId, name, brand, unit, price, mrp, quantity, image: IMG };
+  const matchedMaster = masterCatalog.find((m) => m.id === productId);
+  return { id, productId, name, brand, unit, price, mrp, quantity, image: matchedMaster?.image || IMG };
 }
 
 const baseOrders: Omit<VendorOrder, 'storeId'>[] = [

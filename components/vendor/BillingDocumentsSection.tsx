@@ -194,8 +194,59 @@ export const BillingDocumentsSection: React.FC = () => {
           {invoices.length === 0 ? (
             <p className="text-sm text-[#647067] py-6 text-center">No subscription invoices for {period}.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
+            <>
+              {/* Mobile Adaptive Cards */}
+              <div className="md:hidden divide-y divide-[#E2E8E3]">
+                {invoices.map((inv) => (
+                  <article key={inv.id} className="py-3.5 space-y-2.5 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono font-bold text-[#17201A] block">
+                          {inv.invoiceNumber}
+                        </span>
+                        <p className="font-semibold text-[#17201A] text-sm mt-0.5">
+                          {inv.billingPeriod}
+                        </p>
+                        <p className="text-[#647067]">
+                          {inv.planName} · {inv.financialYear} · Paid {inv.date}
+                        </p>
+                      </div>
+                      <Badge tone={STATUS_TONE[inv.status]}>{inv.status}</Badge>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <div>
+                        <span className="text-[#647067] block">
+                          {store.name} ({isGstRegistered ? `GSTIN: ${store.gstin}` : 'Non-GST'})
+                        </span>
+                        <strong className="text-sm font-black text-[#166534]">
+                          {formatINR(inv.totalAmount)}
+                        </strong>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          leftIcon={<Icon name="eye" className="w-3.5 h-3.5" />}
+                          onClick={() => setPreviewInvoice(inv)}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleMockDownload(inv.invoiceNumber, 'subscription invoice')}
+                        >
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-[#E2E8E3] text-[11px] font-bold uppercase text-[#647067]">
                     <th className="py-2.5 pr-3">Invoice No.</th>
@@ -252,6 +303,7 @@ export const BillingDocumentsSection: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </Card>
       )}
@@ -311,8 +363,65 @@ export const BillingDocumentsSection: React.FC = () => {
               No settlement statements recorded for {store.name} in this period yet.
             </p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
+            <>
+              {/* Mobile Adaptive Cards */}
+              <div className="md:hidden divide-y divide-[#E2E8E3]">
+                {statements.map((st) => (
+                  <article key={st.id} className="py-3.5 space-y-2.5 text-xs">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="font-mono font-bold text-[#17201A] block">
+                          {st.statementNumber}
+                        </span>
+                        <p className="font-semibold text-[#17201A] text-sm mt-0.5">
+                          {st.billingPeriod}
+                        </p>
+                        <p className="text-[#647067]">
+                          {st.ordersCount} orders · {st.financialYear} · {st.date}
+                        </p>
+                      </div>
+                      <Badge tone={STATUS_TONE[st.status]}>{st.status}</Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 rounded-xl bg-[#F8FAF7] border border-[#E2E8E3] p-2.5">
+                      <div>
+                        <span className="text-[10px] text-[#647067] block">Gross Sales</span>
+                        <strong className="font-bold text-[#17201A]">{formatINR(st.grossOrderSales)}</strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#647067] block">Fees &amp; Refunds</span>
+                        <strong className="font-semibold text-[#B45309]">
+                          - {formatINR(st.platformServiceFees + st.refundsAndCancellations)}
+                        </strong>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-[#647067] block">Net Settlement</span>
+                        <strong className="font-black text-[#166534]">{formatINR(st.netSettlementAmount)}</strong>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        leftIcon={<Icon name="eye" className="w-3.5 h-3.5" />}
+                        onClick={() => setPreviewStatement(st)}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleMockDownload(st.statementNumber, 'settlement statement')}
+                      >
+                        Download
+                      </Button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-[#E2E8E3] text-[11px] font-bold uppercase text-[#647067]">
                     <th className="py-2.5 pr-3">Statement No.</th>
@@ -366,6 +475,7 @@ export const BillingDocumentsSection: React.FC = () => {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </Card>
       )}

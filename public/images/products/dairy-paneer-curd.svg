@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" fill="none">
+  <rect width="400" height="400" rx="24" fill="#F8FAF7"/>
+  <rect x="6" y="6" width="388" height="388" rx="20" stroke="#E2E8E3" stroke-width="2"/>
+  <circle cx="200" cy="195" r="118" fill="#16A34A" fill-opacity="0.08"/>
+  <!-- Tub / Pack container -->
+  <rect x="104" y="128" width="192" height="26" rx="10" fill="#166534"/>
+  <path d="M116 154H284L268 286C266 300 254 310 240 310H160C146 310 134 300 132 286L116 154Z" fill="#FFFFFF" stroke="#166534" stroke-width="4"/>
+  <!-- Cubes / Curd swirl -->
+  <rect x="150" y="184" width="44" height="44" rx="8" fill="#F59E0B" fill-opacity="0.22" stroke="#B45309" stroke-width="2.5"/>
+  <rect x="204" y="196" width="44" height="44" rx="8" fill="#166534" fill-opacity="0.12" stroke="#166534" stroke-width="2.5"/>
+  <rect x="150" y="264" width="100" height="22" rx="11" fill="#166534"/>
+  <text x="200" y="279" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="700">PANEER • CURD • BUTTER</text>
+</svg>

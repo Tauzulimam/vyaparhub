@@ -46,7 +46,21 @@ const ordersManager = {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          this.orders = parsed;
+          this.orders = parsed.map((ord: Order) => ({
+            ...ord,
+            items: Array.isArray(ord.items)
+              ? ord.items.map((it) => {
+                  const defaultOrd = mockOrders.find((mo) => mo.id === ord.id);
+                  const defaultItem = defaultOrd?.items.find(
+                    (mi) => mi.productId === it.productId
+                  );
+                  return defaultItem &&
+                    (!it.image || it.image === '/images/placeholder-product.svg')
+                    ? { ...it, image: defaultItem.image }
+                    : it;
+                })
+              : [],
+          }));
         }
       }
     } catch {

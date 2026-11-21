@@ -89,13 +89,22 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
         <nav aria-label="Vendor navigation" className="mt-5 flex-1 space-y-1">
           {NAV_ITEMS.map((item) => renderLink(item))}
         </nav>
-        <Link
-          href="/"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#647067] hover:bg-[#F8FAF7] hover:text-[#17201A]"
-        >
-          <Icon name="back" className="w-5 h-5" />
-          Customer site
-        </Link>
+        <div className="pt-3 border-t border-[#E2E8E3] space-y-1">
+          <Link
+            href="/admin"
+            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#B45309] hover:bg-[#B45309]/10 transition-colors"
+          >
+            <Icon name="shield" className="w-4 h-4" />
+            Admin Console
+          </Link>
+          <Link
+            href="/"
+            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#647067] hover:bg-[#F8FAF7] hover:text-[#17201A] transition-colors"
+          >
+            <Icon name="back" className="w-4 h-4" />
+            Customer Marketplace
+          </Link>
+        </div>
       </aside>
 
       <div className="flex-1 min-w-0 flex flex-col">
@@ -145,14 +154,24 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
             <nav aria-label="Vendor menu" className="mt-4 space-y-1 flex-1 overflow-y-auto">
               {NAV_ITEMS.map((item) => renderLink(item, () => setMenuOpen(false)))}
             </nav>
-            <Link
-              href="/"
-              onClick={() => setMenuOpen(false)}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#647067] hover:bg-[#F8FAF7]"
-            >
-              <Icon name="back" />
-              Customer site
-            </Link>
+            <div className="pt-3 border-t border-[#E2E8E3] space-y-1">
+              <Link
+                href="/admin"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#B45309] hover:bg-[#B45309]/10"
+              >
+                <Icon name="shield" className="w-4 h-4" />
+                Admin Console
+              </Link>
+              <Link
+                href="/"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#647067] hover:bg-[#F8FAF7]"
+              >
+                <Icon name="back" className="w-4 h-4" />
+                Customer Marketplace
+              </Link>
+            </div>
           </div>
         </div>
       )}

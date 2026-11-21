@@ -72,7 +72,22 @@ const cartManager = {
           // Enforce single-store invariant on loaded cart items
           const firstStoreId = parsed.items[0]?.product?.storeId;
           const sanitizedItems: CartItem[] = firstStoreId
-            ? parsed.items.filter((i: CartItem) => i.product?.storeId === firstStoreId)
+            ? parsed.items
+                .filter((i: CartItem) => i.product?.storeId === firstStoreId)
+                .map((i: CartItem) => {
+                  const canonicalProduct = mockProducts.find(
+                    (mp) => mp.id === i.product?.id
+                  );
+                  return canonicalProduct
+                    ? {
+                        ...i,
+                        product: {
+                          ...i.product,
+                          image: canonicalProduct.image,
+                        },
+                      }
+                    : i;
+                })
             : [];
           const resolvedStore =
             sanitizedItems.length > 0

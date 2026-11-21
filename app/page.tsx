@@ -342,16 +342,18 @@ export default function HomePage() {
                 No need for expensive product photography or entering barcode details from scratch. Pick pre-verified items from our central Master Product Catalog, set your price and stock, and start fulfilling neighborhood orders.
               </p>
             </div>
-            <div className="pt-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() =>
-                  setCartFeedback('Vendor registration is part of Phase 4/5. Stay tuned!')
-                }
+            <div className="pt-2 flex flex-wrap items-center gap-3">
+              <Link href="/vendor/stores/new">
+                <Button variant="secondary" size="sm">
+                  Register Your Store →
+                </Button>
+              </Link>
+              <Link
+                href="/vendor"
+                className="text-xs font-bold text-white/90 hover:text-white underline underline-offset-4"
               >
-                Register Your Store (Coming in Phase 5)
-              </Button>
+                Open Vendor Portal
+              </Link>
             </div>
           </div>
         </section>

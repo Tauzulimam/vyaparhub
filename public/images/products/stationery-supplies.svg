@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400" fill="none">
+  <rect width="400" height="400" rx="24" fill="#F8FAF7"/>
+  <rect x="6" y="6" width="388" height="388" rx="20" stroke="#E2E8E3" stroke-width="2"/>
+  <circle cx="200" cy="195" r="118" fill="#166534" fill-opacity="0.07"/>
+  <!-- Spiral Notebook -->
+  <rect x="128" y="92" width="144" height="196" rx="14" fill="#FFFFFF" stroke="#166534" stroke-width="4"/>
+  <path d="M118 116H138M118 144H138M118 172H138M118 200H138M118 228H138M118 256H138" stroke="#B45309" stroke-width="4" stroke-linecap="round"/>
+  <path d="M158 136H244M158 164H244M158 192H224" stroke="#166534" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Pen accent -->
+  <path d="M242 246L278 142L292 147L256 251L242 262L242 246Z" fill="#F59E0B" stroke="#B45309" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="142" y="302" width="116" height="22" rx="11" fill="#166534"/>
+  <text x="200" y="317" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="700">STATIONERY &amp; BOOKS</text>
+</svg>

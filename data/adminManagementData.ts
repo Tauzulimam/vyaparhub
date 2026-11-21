@@ -423,6 +423,7 @@ const EXTRA_MASTER_PRODUCTS: {
   category: string;
   unit: string;
   mrp: number;
+  image: string;
   description: string;
   active: boolean;
 }[] = [
@@ -433,6 +434,7 @@ const EXTRA_MASTER_PRODUCTS: {
     category: 'Bakery & Confectionery',
     unit: '250 g box',
     mrp: 85,
+    image: '/images/products/bakery-bread.svg',
     description: 'Crisp artisan rusk infused with roasted garlic and Italian herbs.',
     active: true,
   },
@@ -443,6 +445,7 @@ const EXTRA_MASTER_PRODUCTS: {
     category: 'Pharmacy & Wellness',
     unit: '30 g tube',
     mrp: 145,
+    image: '/images/products/pharmacy-care.svg',
     description: 'Fast-acting formula with micro-particles for deep musculoskeletal relief.',
     active: true,
   },
@@ -453,6 +456,7 @@ const EXTRA_MASTER_PRODUCTS: {
     category: 'Electronics & Mobile',
     unit: '1 unit (Black)',
     mrp: 999,
+    image: '/images/products/electronics-accessories.svg',
     description: 'Powerful 10mm dynamic drivers with in-line microphone and hawk design.',
     active: true,
   },
@@ -463,6 +467,7 @@ const EXTRA_MASTER_PRODUCTS: {
     category: 'Pet Supplies & Care',
     unit: 'Pack of 4 (85 g each)',
     mrp: 190,
+    image: '/images/products/pet-nutrition.svg',
     description: 'Tuna in jelly succulent chunks for glossy coat and healthy eyesight.',
     active: true,
   },
@@ -473,6 +478,7 @@ const EXTRA_MASTER_PRODUCTS: {
     category: 'Dairy & Fresh Sweets',
     unit: '200 ml glass bottle',
     mrp: 30,
+    image: '/images/products/dairy-milk.svg',
     description: 'Seasonal chilled saffron milk beverage (currently paused in master catalog).',
     active: false,
   },
@@ -483,6 +489,7 @@ const EXTRA_MASTER_PRODUCTS: {
     category: 'Electronics & Mobile',
     unit: '1 unit (B22 Base)',
     mrp: 160,
+    image: '/images/products/electronics-accessories.svg',
     description: 'Energy-saving LED bulb pack; superseded by new 14W SKU.',
     active: false,
   },
@@ -491,10 +498,7 @@ const EXTRA_MASTER_PRODUCTS: {
 function buildInitialMasterCatalog(): AdminMasterProductRecord[] {
   const combined = [
     ...masterCatalog.map((p) => ({ ...p })),
-    ...EXTRA_MASTER_PRODUCTS.map((p) => ({
-      ...p,
-      image: '/images/placeholder-product.svg',
-    })),
+    ...EXTRA_MASTER_PRODUCTS,
   ];
 
   return combined.map((p, idx) => {
