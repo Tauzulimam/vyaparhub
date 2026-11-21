@@ -42,10 +42,19 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <span className="text-[#647067]">Order Tracking (Phase 2C)</span>
+                <Link href="/orders" className="hover:text-[#166534] transition-colors">
+                  My Orders &amp; Tracking
+                </Link>
               </li>
               <li>
-                <span className="text-[#647067]/80">Cash on Delivery Available</span>
+                <Link href="/cart" className="hover:text-[#166534] transition-colors">
+                  My Cart &amp; Checkout
+                </Link>
+              </li>
+              <li>
+                <Link href="/profile" className="hover:text-[#166534] transition-colors">
+                  Customer Profile &amp; Addresses
+                </Link>
               </li>
             </ul>
           </div>
@@ -96,7 +105,7 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <span className="inline-flex items-center text-[11px] font-semibold text-[#166534]">
-                  Phase 2B — Customer Marketplace UI
+                  Phase 2C — Customer Transaction UI
                 </span>
               </li>
             </ul>

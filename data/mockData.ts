@@ -1,4 +1,4 @@
-import { Category, Product, Store } from '@/types';
+import { Category, Product, Store, Address, Order, UserProfile } from '@/types';
 
 export const mockCategories: Category[] = [
   {
@@ -564,4 +564,245 @@ export function getBuyAgainProducts(): Product[] {
 
 export function getCategoryBySlug(slug: string): Category | undefined {
   return mockCategories.find((c) => c.slug === slug);
+}
+
+// ----------------------------------------------------
+// Mock Saved Customer Addresses
+// ----------------------------------------------------
+export const mockAddresses: Address[] = [
+  {
+    id: 'addr-1',
+    tag: 'Home',
+    name: 'Aman Sharma',
+    phone: '+91 98765 12345',
+    addressLine: 'Flat 402, Tower B, Green Meadows, Sector 14',
+    landmark: 'Opposite Community Center & Park',
+    city: 'Gurugram',
+    pincode: '122001',
+    isDefault: true,
+  },
+  {
+    id: 'addr-2',
+    tag: 'Work',
+    name: 'Aman Sharma',
+    phone: '+91 98765 12345',
+    addressLine: 'Desk 14, 3rd Floor, Tech Park Tower A, Sector 15',
+    landmark: 'Near Metro Station Gate 2',
+    city: 'Gurugram',
+    pincode: '122002',
+    isDefault: false,
+  },
+  {
+    id: 'addr-3',
+    tag: 'Other',
+    name: 'Ramesh Sharma (Parents)',
+    phone: '+91 98111 54321',
+    addressLine: 'House 18, Block C, Lane 4, Sector 14 Market',
+    landmark: 'Behind State Bank Branch',
+    city: 'Gurugram',
+    pincode: '122001',
+    isDefault: false,
+  },
+];
+
+// ----------------------------------------------------
+// Mock Customer Orders with Status Stages
+// ----------------------------------------------------
+export const mockOrders: Order[] = [
+  {
+    id: 'ord-8921',
+    orderNumber: 'VH-ORD-8921',
+    createdAt: 'Today, 25 mins ago',
+    storeId: 'store-1',
+    storeName: 'ABC Kirana & Daily Staples',
+    storeAddress: 'Shop 12, Main Market, Sector 14',
+    storePhone: '+91 98765 43210',
+    status: 'OUT_FOR_DELIVERY',
+    items: [
+      {
+        id: 'ord-item-1',
+        productId: 'prod-1',
+        name: 'Aashirvaad Shudh Chakki Atta',
+        brand: 'Aashirvaad',
+        unit: '5 kg bag',
+        price: 245,
+        mrp: 265,
+        quantity: 1,
+        image: '/images/placeholder-product.svg',
+      },
+      {
+        id: 'ord-item-2',
+        productId: 'prod-5',
+        name: 'Amul Taaza Homogenised Toned Milk',
+        brand: 'Amul',
+        unit: '500 ml pouch',
+        price: 30,
+        mrp: 32,
+        quantity: 2,
+        image: '/images/placeholder-product.svg',
+      },
+      {
+        id: 'ord-item-3',
+        productId: 'prod-7',
+        name: 'Farm Fresh Brown Eggs',
+        brand: 'Farm Fresh',
+        unit: '6 pcs pack',
+        price: 55,
+        mrp: 65,
+        quantity: 1,
+        image: '/images/placeholder-product.svg',
+      },
+    ],
+    subtotal: 360,
+    deliveryFee: 25,
+    platformFee: 5,
+    taxes: 0,
+    total: 390,
+    deliveryAddress: mockAddresses[0],
+    deliveryInstructions: 'Ring doorbell twice. Please handle eggs with care.',
+    paymentMethod: 'COD',
+    paymentStatus: 'PENDING',
+    estimatedDeliveryTime: 'In 10–15 mins',
+  },
+  {
+    id: 'ord-8854',
+    orderNumber: 'VH-ORD-8854',
+    createdAt: 'Today, 50 mins ago',
+    storeId: 'store-3',
+    storeName: 'Apollo Life Pharmacy & Chemist',
+    storeAddress: 'Booth 45, Sector 14 Commercial Complex',
+    storePhone: '+91 98222 33445',
+    status: 'PREPARING',
+    items: [
+      {
+        id: 'ord-item-4',
+        productId: 'prod-10',
+        name: 'Dettol Antiseptic Liquid Disinfectant',
+        brand: 'Dettol',
+        unit: '250 ml bottle',
+        price: 110,
+        mrp: 120,
+        quantity: 1,
+        image: '/images/placeholder-product.svg',
+      },
+      {
+        id: 'ord-item-5',
+        productId: 'prod-12',
+        name: 'Cipla ORS Electro-B Electrolyte Drink',
+        brand: 'Cipla',
+        unit: '200 ml tetra pack',
+        price: 32,
+        mrp: 35,
+        quantity: 2,
+        image: '/images/placeholder-product.svg',
+      },
+    ],
+    subtotal: 174,
+    deliveryFee: 25,
+    platformFee: 5,
+    taxes: 0,
+    total: 204,
+    deliveryAddress: mockAddresses[0],
+    deliveryInstructions: 'Deliver urgently if possible.',
+    paymentMethod: 'COD',
+    paymentStatus: 'PENDING',
+    estimatedDeliveryTime: 'In 20–25 mins',
+  },
+  {
+    id: 'ord-8610',
+    orderNumber: 'VH-ORD-8610',
+    createdAt: 'Yesterday, 4:30 PM',
+    storeId: 'store-4',
+    storeName: 'City Bakery & Confectionery',
+    storeAddress: 'Corner Plot 3, Central Avenue, Sector 15',
+    storePhone: '+91 98333 44556',
+    status: 'DELIVERED',
+    items: [
+      {
+        id: 'ord-item-6',
+        productId: 'prod-8',
+        name: 'Britannia 100% Whole Wheat Bread',
+        brand: 'Britannia',
+        unit: '400 g loaf',
+        price: 48,
+        mrp: 50,
+        quantity: 2,
+        image: '/images/placeholder-product.svg',
+      },
+      {
+        id: 'ord-item-7',
+        productId: 'prod-9',
+        name: 'Freshly Baked Garlic Herb Toast',
+        brand: 'City Bakery',
+        unit: '250 g box',
+        price: 75,
+        mrp: 85,
+        quantity: 1,
+        image: '/images/placeholder-product.svg',
+      },
+    ],
+    subtotal: 171,
+    deliveryFee: 25,
+    platformFee: 5,
+    taxes: 0,
+    total: 201,
+    deliveryAddress: mockAddresses[1],
+    paymentMethod: 'COD',
+    paymentStatus: 'PAID',
+    estimatedDeliveryTime: 'Delivered at 5:05 PM',
+  },
+  {
+    id: 'ord-8430',
+    orderNumber: 'VH-ORD-8430',
+    createdAt: '3 days ago',
+    storeId: 'store-6',
+    storeName: 'GadgetHub Electronics & Mobile',
+    storeAddress: 'SCO 28, Main Commercial Hub, Sector 16',
+    storePhone: '+91 98555 66778',
+    status: 'CANCELLED',
+    items: [
+      {
+        id: 'ord-item-8',
+        productId: 'prod-15',
+        name: 'boAt Bassheads 100 Wired Earphones',
+        brand: 'boAt',
+        unit: '1 unit (Black)',
+        price: 399,
+        mrp: 999,
+        quantity: 1,
+        image: '/images/placeholder-product.svg',
+      },
+    ],
+    subtotal: 399,
+    deliveryFee: 30,
+    platformFee: 5,
+    taxes: 0,
+    total: 434,
+    deliveryAddress: mockAddresses[0],
+    paymentMethod: 'COD',
+    paymentStatus: 'PENDING',
+    estimatedDeliveryTime: 'Cancelled by customer',
+  },
+];
+
+// ----------------------------------------------------
+// Mock Customer Profile
+// ----------------------------------------------------
+export const mockUserProfile: UserProfile = {
+  name: 'Aman Sharma',
+  email: 'aman.sharma@example.com',
+  phone: '+91 98765 12345',
+  currentLocation: 'Sector 14, Main Market, Gurugram',
+  memberSince: 'January 2026',
+  savedAddresses: mockAddresses,
+  preferences: {
+    vegetarianOnly: false,
+    smsUpdates: true,
+    whatsappUpdates: true,
+    defaultNotes: 'Please ring bell and leave package at door if not answered.',
+  },
+};
+
+export function getOrderById(id: string): Order | undefined {
+  return mockOrders.find((o) => o.id === id || o.orderNumber === id);
 }

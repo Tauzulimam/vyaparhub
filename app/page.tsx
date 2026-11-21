@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { CategoryCard } from '@/components/ui/CategoryCard';
 import { ProductCard } from '@/components/product/ProductCard';
 import { StoreCard } from '@/components/store/StoreCard';
+import { SwitchCartModal } from '@/components/cart/SwitchCartModal';
 import {
   mockCategories,
   mockStores,
@@ -22,8 +23,9 @@ import { useMockCart } from '@/lib/mockCart';
 
 export default function HomePage() {
   const router = useRouter();
-  const { cartCount, incrementCart } = useMockCart();
+  const { cartCount, addToCart, replaceCartWithProduct, store } = useMockCart();
   const [cartFeedback, setCartFeedback] = useState<string | null>(null);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('All');
 
   const popularProducts = getPopularProducts();
@@ -36,11 +38,14 @@ export default function HomePage() {
       : popularProducts.filter((p) => p.category.includes(activeCategoryFilter));
 
   const handleAddToCart = (product: Product) => {
-    incrementCart();
-    setCartFeedback(`Added "${product.name}" from ${product.storeName} to cart.`);
-    setTimeout(() => {
-      setCartFeedback(null);
-    }, 4000);
+    const result = addToCart(product, 1);
+    if (result.success) {
+      setCartFeedback(`Added "${product.name}" from ${product.storeName} to cart.`);
+      setTimeout(() => setCartFeedback(null), 4000);
+    } else {
+      // Store conflict — prompt user
+      setPendingProduct(product);
+    }
   };
 
   const handleHeroSearch = (query: string) => {
@@ -55,13 +60,6 @@ export default function HomePage() {
       <Navbar
         cartItemCount={cartCount}
         currentLocation="Sector 14, Main Market (0.4 km)"
-        onCartClick={() =>
-          setCartFeedback(
-            cartCount > 0
-              ? `Cart contains ${cartCount} items. (Checkout is Phase 2C)`
-              : 'Your cart is currently empty. Add items from nearby stores below!'
-          )
-        }
         onLocationClick={() =>
           setCartFeedback('Hyperlocal location: Sector 14, Gurugram (~5 km service radius).')
         }
@@ -364,6 +362,23 @@ export default function HomePage() {
 
       {/* 9. Mobile Bottom Navigation */}
       <MobileNav cartItemCount={cartCount} />
+
+      {/* 10. Single-Store Cart Conflict Modal */}
+      {pendingProduct && (
+        <SwitchCartModal
+          newProduct={pendingProduct}
+          currentStoreName={store?.name || 'another store'}
+          onCancel={() => setPendingProduct(null)}
+          onConfirm={() => {
+            replaceCartWithProduct(pendingProduct, 1);
+            setCartFeedback(
+              `Switched cart to ${pendingProduct.storeName} and added "${pendingProduct.name}".`
+            );
+            setTimeout(() => setCartFeedback(null), 4000);
+            setPendingProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 }

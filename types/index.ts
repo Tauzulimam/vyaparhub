@@ -66,3 +66,86 @@ export interface SearchBarProps {
   autoFocus?: boolean;
   ariaLabel?: string;
 }
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
+}
+
+export interface CartStore {
+  id: string;
+  name: string;
+  deliveryTimeMin?: string;
+  distanceKm?: number;
+  address?: string;
+}
+
+export interface Address {
+  id: string;
+  tag: 'Home' | 'Work' | 'Other';
+  name: string;
+  phone: string;
+  addressLine: string;
+  landmark?: string;
+  city: string;
+  pincode: string;
+  isDefault?: boolean;
+}
+
+export type OrderStatus =
+  | 'PLACED'
+  | 'ACCEPTED'
+  | 'PREPARING'
+  | 'READY'
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'CANCELLED';
+
+export interface OrderItem {
+  id: string;
+  productId: string;
+  name: string;
+  brand: string;
+  unit: string;
+  price: number;
+  mrp: number;
+  quantity: number;
+  image: string;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  createdAt: string;
+  storeId: string;
+  storeName: string;
+  storeAddress?: string;
+  storePhone?: string;
+  items: OrderItem[];
+  subtotal: number;
+  deliveryFee: number;
+  platformFee: number;
+  taxes: number;
+  total: number;
+  status: OrderStatus;
+  deliveryAddress: Address;
+  deliveryInstructions?: string;
+  paymentMethod: 'COD' | 'MOCK_UPI' | 'MOCK_CARD';
+  paymentStatus: 'PENDING' | 'PAID';
+  estimatedDeliveryTime: string;
+}
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+  currentLocation: string;
+  memberSince: string;
+  savedAddresses: Address[];
+  preferences: {
+    vegetarianOnly: boolean;
+    smsUpdates: boolean;
+    whatsappUpdates: boolean;
+    defaultNotes: string;
+  };
+}

@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { SearchBar } from '@/components/ui/SearchBar';
-import { Button } from '@/components/ui/Button';
 import { useMockCart } from '@/lib/mockCart';
 
 interface NavbarProps {
@@ -23,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLocationClick,
 }) => {
   const router = useRouter();
+  const pathname = usePathname();
   const { cartCount: sharedCartCount } = useMockCart();
   const effectiveCartCount = cartItemCount !== undefined ? cartItemCount : sharedCartCount;
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -139,7 +139,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Stores Link */}
             <Link
               href="/stores"
-              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#17201A] hover:text-[#166534] hover:bg-[#F8FAF7] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
+              className={`hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] ${
+                pathname.startsWith('/stores')
+                  ? 'text-[#166534] bg-[#166534]/10 font-semibold'
+                  : 'text-[#17201A] hover:text-[#166534] hover:bg-[#F8FAF7]'
+              }`}
             >
               <svg
                 className="w-4 h-4 text-[#166534]"
@@ -161,7 +165,11 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Products Link */}
             <Link
               href="/products"
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-[#17201A] hover:text-[#166534] hover:bg-[#F8FAF7] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
+              className={`hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] ${
+                pathname.startsWith('/products')
+                  ? 'text-[#166534] bg-[#166534]/10 font-semibold'
+                  : 'text-[#17201A] hover:text-[#166534] hover:bg-[#F8FAF7]'
+              }`}
             >
               <svg
                 className="w-4 h-4 text-[#166534]"
@@ -180,37 +188,75 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Products</span>
             </Link>
 
-            {/* Cart Button */}
-            <Button
-              variant="outline"
-              size="md"
-              onClick={onCartClick}
-              aria-label={`Shopping cart with ${effectiveCartCount} items`}
-              className="relative !px-3 sm:!px-4"
-              leftIcon={
-                <svg
-                  className="w-5 h-5 text-[#166534]"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                  />
-                </svg>
-              }
+            {/* Orders Link */}
+            <Link
+              href="/orders"
+              className={`hidden md:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] ${
+                pathname.startsWith('/orders')
+                  ? 'text-[#166534] bg-[#166534]/10 font-semibold'
+                  : 'text-[#17201A] hover:text-[#166534] hover:bg-[#F8FAF7]'
+              }`}
             >
+              <svg
+                className="w-4 h-4 text-[#166534]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <span>Orders</span>
+            </Link>
+
+            {/* Cart Button */}
+            <Link
+              href="/cart"
+              aria-label={`Shopping cart with ${effectiveCartCount} items`}
+              onClick={onCartClick ? (e) => { e.preventDefault(); onCartClick(); } : undefined}
+              className={`relative inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-lg border text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] ${
+                pathname === '/cart' || pathname === '/checkout'
+                  ? 'border-[#166534] bg-[#166534]/10 text-[#166534] font-semibold'
+                  : 'border-[#E2E8E3] bg-white text-[#17201A] hover:bg-[#F8FAF7] hover:border-[#166534] hover:text-[#166534]'
+              }`}
+            >
+              <svg
+                className="w-5 h-5 text-[#166534]"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                />
+              </svg>
               <span className="hidden sm:inline">Cart</span>
               {effectiveCartCount > 0 && (
                 <span className="ml-1 px-1.5 py-0.2 rounded-full text-xs font-bold bg-[#166534] text-white">
                   {effectiveCartCount}
                 </span>
               )}
-            </Button>
+            </Link>
+
+            {/* Profile Link */}
+            <Link
+              href="/profile"
+              aria-label="My Profile"
+              className={`p-2 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] ${
+                pathname === '/profile'
+                  ? 'text-[#166534] bg-[#166534]/10'
+                  : 'text-[#647067] hover:bg-[#F8FAF7] hover:text-[#17201A]'
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </Link>
           </div>
         </div>
 

@@ -9,6 +9,7 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { ProductCard } from '@/components/product/ProductCard';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Button } from '@/components/ui/Button';
+import { SwitchCartModal } from '@/components/cart/SwitchCartModal';
 import { mockProducts, mockCategories, mockStores } from '@/data/mockData';
 import { Product } from '@/types';
 import { useMockCart } from '@/lib/mockCart';
@@ -31,8 +32,9 @@ function ProductsContent() {
   const [selectedStore, setSelectedStore] = useState<string>('All');
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'discount'>('featured');
-  const { cartCount, incrementCart } = useMockCart();
+  const { cartCount, store, addToCart, replaceCartWithProduct } = useMockCart();
   const [cartToast, setCartToast] = useState<string | null>(null);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
 
   const activeSearchQuery = userQuery !== null ? userQuery : urlQuery;
   const activeCategory = userCategory !== null ? userCategory : urlCategoryName;
@@ -95,9 +97,13 @@ function ProductsContent() {
   }, [activeSearchQuery, activeCategory, selectedStore, inStockOnly, sortBy]);
 
   const handleAddToCart = (product: Product) => {
-    incrementCart();
-    setCartToast(`Added 1x "${product.name}" from ${product.storeName} to cart.`);
-    setTimeout(() => setCartToast(null), 3500);
+    const result = addToCart(product, 1);
+    if (result.success) {
+      setCartToast(`Added 1x "${product.name}" from ${product.storeName} to cart.`);
+      setTimeout(() => setCartToast(null), 3500);
+    } else {
+      setPendingProduct(product);
+    }
   };
 
   const handleResetFilters = () => {
@@ -282,6 +288,22 @@ function ProductsContent() {
 
       <Footer />
       <MobileNav cartItemCount={cartCount} />
+
+      {pendingProduct && (
+        <SwitchCartModal
+          newProduct={pendingProduct}
+          currentStoreName={store?.name || 'another store'}
+          onCancel={() => setPendingProduct(null)}
+          onConfirm={() => {
+            replaceCartWithProduct(pendingProduct, 1);
+            setCartToast(
+              `Switched cart to ${pendingProduct.storeName} and added 1x "${pendingProduct.name}".`
+            );
+            setTimeout(() => setCartToast(null), 3500);
+            setPendingProduct(null);
+          }}
+        />
+      )}
     </div>
   );
 }
