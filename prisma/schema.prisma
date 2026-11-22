@@ -1,0 +1,9 @@
+// Phase 3B: Prisma setup only. Application models are added in Phase 3A work.
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
