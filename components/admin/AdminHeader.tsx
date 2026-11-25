@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon, type IconName } from '@/components/vendor/Icon';
+import { LogoutButton } from '@/components/auth/LogoutButton';
 
 const ADMIN_NAV_LINKS: { href: string; label: string; icon: IconName; exact?: boolean }[] = [
   { href: '/admin', label: 'Dashboard', icon: 'dashboard', exact: true },
@@ -74,13 +75,6 @@ export const AdminHeader: React.FC = () => {
             className="flex items-center gap-2 text-xs sm:text-sm shrink-0"
           >
             <Link
-              href="/vendor"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8E3] bg-[#F8FAF7] font-semibold text-[#17201A] hover:border-[#166534] hover:text-[#166534] transition-colors"
-            >
-              <Icon name="store" className="w-4 h-4 text-[#B45309]" />
-              <span>Vendor Portal</span>
-            </Link>
-            <Link
               href="/"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[#E2E8E3] bg-white font-semibold text-[#647067] hover:border-[#166534] hover:text-[#17201A] transition-colors"
             >
@@ -88,6 +82,7 @@ export const AdminHeader: React.FC = () => {
               <span className="hidden sm:inline">Customer Marketplace</span>
               <span className="sm:hidden">Storefront</span>
             </Link>
+            <LogoutButton size="sm" />
           </nav>
         </div>
 

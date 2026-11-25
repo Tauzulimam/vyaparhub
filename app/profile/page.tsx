@@ -10,6 +10,7 @@ import { useMockCart } from '@/lib/mockCart';
 import { useMockProfile } from '@/lib/mockProfile';
 import { useMockOrders } from '@/lib/mockOrders';
 import { Address } from '@/types';
+import { LogoutButton } from '@/components/auth/LogoutButton';
 
 type ProfileTab = 'details' | 'addresses' | 'orders' | 'preferences';
 
@@ -193,13 +194,16 @@ export default function ProfilePage() {
               <span className="text-xs text-[#647067]">Member since {profile.memberSince}</span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-[#166534] bg-[#166534]/10 px-2.5 py-1 rounded-full">
-              {orders.length} orders
-            </span>
-            <span className="text-xs text-[#647067] bg-[#F8FAF7] border border-[#E2E8E3] px-2.5 py-1 rounded-full">
-              🔒 Prototype
-            </span>
+          <div className="flex flex-wrap sm:flex-col sm:items-end items-center gap-2.5 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-[#166534] bg-[#166534]/10 px-2.5 py-1 rounded-full">
+                {orders.length} orders
+              </span>
+              <span className="text-xs text-[#647067] bg-[#F8FAF7] border border-[#E2E8E3] px-2.5 py-1 rounded-full">
+                🔒 Prototype
+              </span>
+            </div>
+            <LogoutButton />
           </div>
         </div>
 
@@ -288,6 +292,16 @@ export default function ProfilePage() {
                   </div>
                 ))}
               </dl>
+            )}
+
+            {!editingDetails && (
+              <div className="pt-4 border-t border-[#E2E8E3] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xs font-semibold text-[#647067] uppercase tracking-wide">Account Session</h3>
+                  <p className="text-xs text-[#647067]">Sign out of your active session on this device</p>
+                </div>
+                <LogoutButton />
+              </div>
             )}
           </section>
         )}

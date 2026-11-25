@@ -24,3 +24,10 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   min-height: 100vh;
 }
+
+/* Suppress native browser password reveal and clear buttons (e.g. Edge/Chromium) to prevent duplicate toggle icons */
+input::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+

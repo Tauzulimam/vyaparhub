@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Icon, type IconName } from '@/components/vendor/Icon';
 import { StoreSwitcher } from '@/components/vendor/StoreSwitcher';
+import { LogoutButton } from '@/components/auth/LogoutButton';
 import { useVendorState } from '@/lib/vendorStore';
 
 interface NavItem {
@@ -44,6 +45,11 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
   const pathname = usePathname();
   const { store, orders } = useVendorState();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Authentication registration page (/vendor/register) renders standalone AuthLayout without vendor management shell
+  if (pathname === '/vendor/register' || pathname.startsWith('/vendor/register/')) {
+    return <>{children}</>;
+  }
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
 
   const isActive = (item: NavItem) =>
@@ -91,19 +97,15 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
         </nav>
         <div className="pt-3 border-t border-[#E2E8E3] space-y-1">
           <Link
-            href="/admin"
-            className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#B45309] hover:bg-[#B45309]/10 transition-colors"
-          >
-            <Icon name="shield" className="w-4 h-4" />
-            Admin Console
-          </Link>
-          <Link
             href="/"
             className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#647067] hover:bg-[#F8FAF7] hover:text-[#17201A] transition-colors"
           >
             <Icon name="back" className="w-4 h-4" />
             Customer Marketplace
           </Link>
+          <div className="pt-1.5 border-t border-[#E2E8E3]">
+            <LogoutButton fullWidth variant="outline" size="sm" className="justify-start gap-2.5 font-semibold text-xs" />
+          </div>
         </div>
       </aside>
 
@@ -156,14 +158,6 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
             </nav>
             <div className="pt-3 border-t border-[#E2E8E3] space-y-1">
               <Link
-                href="/admin"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#B45309] hover:bg-[#B45309]/10"
-              >
-                <Icon name="shield" className="w-4 h-4" />
-                Admin Console
-              </Link>
-              <Link
                 href="/"
                 onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-[#647067] hover:bg-[#F8FAF7]"
@@ -171,6 +165,9 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
                 <Icon name="back" className="w-4 h-4" />
                 Customer Marketplace
               </Link>
+              <div className="pt-1.5 border-t border-[#E2E8E3]">
+                <LogoutButton fullWidth variant="outline" size="sm" className="justify-start gap-2.5 font-semibold text-xs" />
+              </div>
             </div>
           </div>
         </div>
