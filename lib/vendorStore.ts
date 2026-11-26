@@ -112,6 +112,15 @@ export const vendorActions = {
     if (state.stores.some((s) => s.id === storeId)) setState({ activeStoreId: storeId });
   },
 
+  activateCreatedStore(createdStore: VendorStoreInfo) {
+    setState({
+      stores: state.stores.some((s) => s.id === createdStore.id)
+        ? state.stores.map((s) => (s.id === createdStore.id ? createdStore : s))
+        : [...state.stores, createdStore],
+      activeStoreId: createdStore.id,
+    });
+  },
+
   /** Mock registration: adds an empty store and makes it the active one. */
   registerStore(input: NewStoreInput) {
     const cleanGstin =
@@ -197,14 +206,52 @@ export const vendorActions = {
   },
 };
 
+import { useVendorContext } from '@/components/vendor/VendorProvider';
+
 export function useVendorState() {
+  const ctx = useVendorContext();
   const s = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  const store = s.stores.find((x) => x.id === s.activeStoreId) ?? s.stores[0];
+
+  if (ctx) {
+    return {
+      store: ctx.store,
+      stores: ctx.stores,
+      activeStoreId: ctx.activeStoreId,
+      vendorProfile: ctx.vendorProfile,
+      categories: ctx.categories,
+      products: ctx.products,
+      orders: ctx.orders,
+      hasStores: ctx.stores.length > 0,
+      isPending: ctx.isPending,
+      actions: {
+        ...vendorActions,
+        activateCreatedStore: ctx.actions.activateCreatedStore,
+        switchStore: ctx.actions.switchStore,
+        updateStore: ctx.actions.updateStore,
+        addProduct: ctx.actions.addProduct,
+        updateProduct: ctx.actions.updateProduct,
+        addStock: ctx.actions.addStock,
+        setStock: ctx.actions.setStock,
+        removeProduct: ctx.actions.removeProduct,
+        restockProduct: ctx.actions.restockProduct,
+        advanceOrder: ctx.actions.advanceOrder,
+        updateOrderStatus: ctx.actions.updateOrderStatus,
+        cancelOrder: ctx.actions.cancelOrder,
+      },
+    };
+  }
+
+  const store = s.stores.find((x) => x.id === s.activeStoreId) ?? s.stores[0] ?? null;
   return {
     store,
     stores: s.stores,
-    products: s.allProducts.filter((p) => p.storeId === store.id),
-    orders: s.allOrders.filter((o) => o.storeId === store.id),
+    activeStoreId: s.activeStoreId,
+    vendorProfile: null,
+    categories: [],
+    products: store ? s.allProducts.filter((p) => p.storeId === store.id) : [],
+    orders: store ? s.allOrders.filter((o) => o.storeId === store.id) : [],
+    hasStores: s.stores.length > 0,
+    isPending: false,
     actions: vendorActions,
   };
 }

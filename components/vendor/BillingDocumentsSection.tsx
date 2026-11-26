@@ -31,6 +31,14 @@ export const BillingDocumentsSection: React.FC = () => {
   const [previewStatement, setPreviewStatement] = useState<VendorSettlementStatement | null>(null);
   const [downloadNote, setDownloadNote] = useState('');
 
+  if (!store) {
+    return (
+      <div className="p-4 rounded-xl border border-[#E2E8E3] bg-white text-sm text-[#647067]">
+        No store registered. Invoices and settlement statements are linked to an active store.
+      </div>
+    );
+  }
+
   const isGstRegistered = store.gstStatus === 'REGISTERED' && Boolean(store.gstin);
 
   const invoices = mockVendorInvoices.filter((inv) => period === 'ALL' || inv.financialYear === period);

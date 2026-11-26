@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { AddToStoreModal, CatalogProductCard } from '@/components/vendor/CatalogParts';
 import { inputClass } from '@/components/vendor/InventoryRow';
 import { Card, PageHeader } from '@/components/vendor/ui';
@@ -9,10 +10,26 @@ import { useVendorState } from '@/lib/vendorStore';
 import type { MasterProduct } from '@/types/vendor';
 
 export default function VendorCatalogPage() {
-  const { products } = useVendorState();
+  const { store, products } = useVendorState();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [selected, setSelected] = useState<MasterProduct | null>(null);
+
+  if (!store) {
+    return (
+      <>
+        <PageHeader title="Master Product Catalog" subtitle="Pick ready-made products to add to your store." />
+        <Card className="p-8 text-center max-w-xl mx-auto space-y-4 border-2 border-dashed border-[#166534]/30 bg-white">
+          <p className="text-sm text-[#647067]">Please register a store first to add products from the catalog.</p>
+          <div>
+            <Link href="/vendor/stores/new" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#166534] text-white text-xs font-semibold">
+              Register New Store
+            </Link>
+          </div>
+        </Card>
+      </>
+    );
+  }
 
   const addedIds = new Set(products.map((p) => p.masterProductId));
   const q = query.trim().toLowerCase();

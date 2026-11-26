@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { OrderCard } from '@/components/vendor/OrderCard';
 import { Card, PageHeader } from '@/components/vendor/ui';
 import { useVendorState } from '@/lib/vendorStore';
@@ -15,8 +16,24 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function VendorOrdersPage() {
-  const { orders } = useVendorState();
+  const { store, orders } = useVendorState();
   const [tab, setTab] = useState<Tab>('incoming');
+
+  if (!store) {
+    return (
+      <>
+        <PageHeader title="Orders" subtitle="Manage incoming and active customer orders." />
+        <Card className="p-8 text-center max-w-xl mx-auto space-y-4 border-2 border-dashed border-[#166534]/30 bg-white">
+          <p className="text-sm text-[#647067]">Please register a store first to view and manage orders.</p>
+          <div>
+            <Link href="/vendor/stores/new" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#166534] text-white text-xs font-semibold">
+              Register New Store
+            </Link>
+          </div>
+        </Card>
+      </>
+    );
+  }
 
   const groups: Record<Tab, typeof orders> = {
     incoming: orders.filter((o) => o.status === 'PENDING'),

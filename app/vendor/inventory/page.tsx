@@ -12,9 +12,25 @@ import { getStockState, useVendorState } from '@/lib/vendorStore';
 type Filter = 'all' | 'low' | 'out' | 'hidden';
 
 export default function VendorInventoryPage() {
-  const { products } = useVendorState();
+  const { store, products } = useVendorState();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+
+  if (!store) {
+    return (
+      <>
+        <PageHeader title="Inventory" subtitle="Track and update product stock levels and prices." />
+        <Card className="p-8 text-center max-w-xl mx-auto space-y-4 border-2 border-dashed border-[#166534]/30 bg-white">
+          <p className="text-sm text-[#647067]">Please register a store first to manage inventory.</p>
+          <div>
+            <Link href="/vendor/stores/new" className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#166534] text-white text-xs font-semibold">
+              Register New Store
+            </Link>
+          </div>
+        </Card>
+      </>
+    );
+  }
 
   const counts = {
     all: products.length,

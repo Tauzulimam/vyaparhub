@@ -77,10 +77,14 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
     </Link>
   );
 
-  const storeStatus = (
+  const storeStatus = store ? (
     <div className="flex items-center gap-1.5 text-xs font-semibold">
       <span className={`w-2 h-2 rounded-full ${store.isOpen ? 'bg-[#16A34A]' : 'bg-[#DC2626]'}`} />
       <span className={store.isOpen ? 'text-[#166534]' : 'text-[#DC2626]'}>{store.isOpen ? 'Store Open' : 'Store Closed'}</span>
+    </div>
+  ) : (
+    <div className="flex items-center gap-1.5 text-xs font-semibold text-[#647067]">
+      <span>No Store</span>
     </div>
   );
 
@@ -126,7 +130,7 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
           </div>
         </header>
 
-        <main key={store.id} className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-10">{children}</main>
+        <main key={store?.id ?? 'no-store'} className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-10">{children}</main>
       </div>
 
       {/* Mobile slide-over menu */}

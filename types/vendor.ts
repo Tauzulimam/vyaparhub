@@ -48,6 +48,67 @@ export interface VendorStoreInfo {
   gstin?: string;
   /** Verified GSTINs are read-only; changes need support re-verification (future). */
   gstVerified: boolean;
+  /** Real DB fields from Store and Category */
+  verificationStatus?: string;
+  marketplaceStatus?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  area?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  categoryId?: string;
+}
+
+export interface VendorProfileDto {
+  id: string;
+  userId: string;
+  ownerName: string;
+  registeredMobile: string;
+  businessEmail: string;
+  verificationStatus: string;
+  verifiedAt: string | null;
+}
+
+export interface CategoryOptionDto {
+  id: string;
+  name: string;
+  slug: string;
+}
+
+export interface CreateStoreInput {
+  name: string;
+  categoryId: string;
+  description?: string;
+  phone: string;
+  email?: string;
+  addressLine1: string;
+  addressLine2?: string;
+  area: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  openingTime: string;
+  closingTime: string;
+  deliveryRadiusKm: number;
+  minimumOrderAmount: number;
+  gstStatus: GstStatus;
+  gstin?: string;
+}
+
+export interface UpdateStoreDetailsInput {
+  description?: string;
+  email?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  area?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  openingTime?: string;
+  closingTime?: string;
+  deliveryRadiusKm?: number;
+  minimumOrderAmount?: number;
 }
 
 export type VendorOrderStatus =

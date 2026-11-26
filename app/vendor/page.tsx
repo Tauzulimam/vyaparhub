@@ -39,7 +39,42 @@ const QUICK_ACTIONS: { href: string; label: string; icon: IconName }[] = [
 ];
 
 export default function VendorDashboardPage() {
-  const { store, products, orders } = useVendorState();
+  const { store, stores, vendorProfile, products, orders } = useVendorState();
+
+  if (!store || stores.length === 0) {
+    const ownerFirst = vendorProfile?.ownerName?.split(' ')[0] || 'Partner';
+    return (
+      <>
+        <PageHeader
+          title={`Welcome, ${ownerFirst}`}
+          subtitle="VyaparHub Hyperlocal Vendor Portal"
+        />
+
+        <div className="mt-4">
+          <Card className="p-8 text-center max-w-xl mx-auto space-y-4 border-2 border-dashed border-[#166534]/30 bg-white">
+            <div className="w-16 h-16 rounded-2xl bg-[#166534]/10 text-[#166534] flex items-center justify-center mx-auto">
+              <Icon name="store" className="w-8 h-8" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-xl font-bold text-[#17201A]">Register your first store</h2>
+              <p className="text-sm text-[#647067]">
+                You have not registered any store yet. Set up your store location, categories, and business details to start selling to nearby customers.
+              </p>
+            </div>
+            <div className="pt-2">
+              <Link
+                href="/vendor/stores/new"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#166534] text-white text-sm font-semibold hover:bg-[#14532d] shadow-sm transition-colors"
+              >
+                <Icon name="plus" className="w-4 h-4" />
+                Register New Store
+              </Link>
+            </div>
+          </Card>
+        </div>
+      </>
+    );
+  }
 
   const activeOrders = orders.filter((o) => !['DELIVERED', 'CANCELLED'].includes(o.status));
   const pending = orders.filter((o) => o.status === 'PENDING');

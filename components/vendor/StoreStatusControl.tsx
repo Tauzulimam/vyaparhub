@@ -7,6 +7,11 @@ import { useVendorState } from '@/lib/vendorStore';
 /** Prominent Open/Closed control — shown on the dashboard only. */
 export const StoreStatusControl: React.FC = () => {
   const { store, actions } = useVendorState();
+
+  if (!store) {
+    return null;
+  }
+
   const open = store.isOpen;
 
   return (
