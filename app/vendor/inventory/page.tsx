@@ -6,13 +6,12 @@ import { Button } from '@/components/ui/Button';
 import { InventoryRow, inputClass } from '@/components/vendor/InventoryRow';
 import { Card, PageHeader } from '@/components/vendor/ui';
 import { Icon } from '@/components/vendor/Icon';
-import { masterById } from '@/data/vendorData';
 import { getStockState, useVendorState } from '@/lib/vendorStore';
 
 type Filter = 'all' | 'low' | 'out' | 'hidden';
 
 export default function VendorInventoryPage() {
-  const { store, products } = useVendorState();
+  const { store, products, masterCatalogById } = useVendorState();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -40,15 +39,21 @@ export default function VendorInventoryPage() {
   };
 
   const q = query.trim().toLowerCase();
-  const visible = products.filter((p) => {
-    const m = masterById[p.masterProductId];
-    if (!m) return false;
-    if (q && !`${m.name} ${m.brand}`.toLowerCase().includes(q)) return false;
-    if (filter === 'low') return getStockState(p.quantity) === 'LOW_STOCK';
-    if (filter === 'out') return p.quantity <= 0;
-    if (filter === 'hidden') return !p.available;
-    return true;
-  });
+  const visible = products
+    .map((p) => ({
+      item: p,
+      master: p.masterProduct ?? masterCatalogById[p.masterProductId],
+    }))
+    .filter(({ item, master }) => {
+      if (!master) return false;
+      if (q && !`${master.name} ${master.brand} ${master.category}`.toLowerCase().includes(q)) {
+        return false;
+      }
+      if (filter === 'low') return getStockState(item.quantity) === 'LOW_STOCK';
+      if (filter === 'out') return item.quantity <= 0;
+      if (filter === 'hidden') return !item.available;
+      return true;
+    });
 
   const FILTERS: { id: Filter; label: string }[] = [
     { id: 'all', label: 'All' },
@@ -95,14 +100,29 @@ export default function VendorInventoryPage() {
         </div>
       </div>
 
-      {visible.length === 0 ? (
+      {products.length === 0 ? (
+        <Card className="p-10 text-center space-y-3">
+          <p className="text-sm text-[#647067]">
+            No products in <span className="font-semibold text-[#17201A]">{store.name}</span> yet. Add products from the Master Catalog to start managing inventory.
+          </p>
+          <div>
+            <Link
+              href="/vendor/catalog"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#166534] text-white text-xs font-semibold hover:bg-[#14532d] transition-colors"
+            >
+              <Icon name="plus" className="w-4 h-4" />
+              Browse Master Catalog
+            </Link>
+          </div>
+        </Card>
+      ) : visible.length === 0 ? (
         <Card className="p-10 text-center text-sm text-[#647067]">
-          {products.length === 0 ? 'No products yet. Add some from the master catalog.' : 'No products match your filters.'}
+          No products match your filters.
         </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {visible.map((p) => (
-            <InventoryRow key={p.id} item={p} master={masterById[p.masterProductId]} />
+          {visible.map(({ item, master }) => (
+            <InventoryRow key={item.id} item={item} master={master!} />
           ))}
         </div>
       )}

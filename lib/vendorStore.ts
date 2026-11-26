@@ -5,6 +5,8 @@ import {
   initialStoreProducts,
   initialVendorOrders,
   LOW_STOCK_THRESHOLD,
+  masterById,
+  masterCatalog,
   mockVendorStores,
   VENDOR_STORE_ID,
 } from '@/data/vendorData';
@@ -138,9 +140,15 @@ export const vendorActions = {
     setState({ stores: [...state.stores, store], activeStoreId: store.id });
   },
 
-  addProduct(masterProductId: string, sellingPrice: number, quantity: number) {
+  async addProduct(
+    masterProductId: string,
+    sellingPrice: number,
+    quantity: number
+  ): Promise<InventoryMutationResult> {
     const storeId = state.activeStoreId;
-    if (state.allProducts.some((p) => p.storeId === storeId && p.masterProductId === masterProductId)) return;
+    if (state.allProducts.some((p) => p.storeId === storeId && p.masterProductId === masterProductId)) {
+      return { success: false, error: 'This product is already listed in your active store.' };
+    }
     const product: StoreProduct = {
       id: `sp-${Date.now()}`,
       storeId,
@@ -148,17 +156,25 @@ export const vendorActions = {
       sellingPrice,
       quantity,
       available: quantity > 0,
+      masterProduct: masterById[masterProductId],
     };
     setState({ allProducts: [product, ...state.allProducts] });
+    return { success: true };
   },
 
-  updateProduct(id: string, patch: Partial<Pick<StoreProduct, 'sellingPrice' | 'quantity' | 'available'>>) {
+  async updateProduct(
+    id: string,
+    patch: Partial<Pick<StoreProduct, 'sellingPrice' | 'quantity' | 'available'>>
+  ): Promise<InventoryMutationResult> {
     setState({ allProducts: state.allProducts.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
+    return { success: true };
   },
 
   /** Restock: increases current stock. Re-enables a product that was auto-hidden at zero stock. */
-  addStock(id: string, amount: number) {
-    if (!Number.isInteger(amount) || amount <= 0) return;
+  async addStock(id: string, amount: number): Promise<InventoryMutationResult> {
+    if (!Number.isInteger(amount) || amount <= 0) {
+      return { success: false, error: 'Quantity to add must be a whole number of 1 or more.' };
+    }
     setState({
       allProducts: state.allProducts.map((p) =>
         p.id === id
@@ -166,11 +182,14 @@ export const vendorActions = {
           : p
       ),
     });
+    return { success: true };
   },
 
   /** Correction: sets exact stock. Zero stock forces the product unavailable. */
-  setStock(id: string, quantity: number) {
-    if (!Number.isInteger(quantity) || quantity < 0) return;
+  async setStock(id: string, quantity: number): Promise<InventoryMutationResult> {
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      return { success: false, error: 'Stock quantity cannot be negative or fractional.' };
+    }
     setState({
       allProducts: state.allProducts.map((p) =>
         p.id === id
@@ -178,10 +197,16 @@ export const vendorActions = {
           : p
       ),
     });
+    return { success: true };
   },
 
-  removeProduct(id: string) {
+  async removeProduct(id: string): Promise<InventoryMutationResult> {
     setState({ allProducts: state.allProducts.filter((p) => p.id !== id) });
+    return { success: true };
+  },
+
+  async restockProduct(id: string, additionalUnits: number): Promise<InventoryMutationResult> {
+    return vendorActions.addStock(id, additionalUnits);
   },
 
   /** Vendors can only move an order up to READY (Ready for Pickup). */
@@ -206,7 +231,10 @@ export const vendorActions = {
   },
 };
 
-import { useVendorContext } from '@/components/vendor/VendorProvider';
+import {
+  type InventoryMutationResult,
+  useVendorContext,
+} from '@/components/vendor/VendorProvider';
 
 export function useVendorState() {
   const ctx = useVendorContext();
@@ -219,6 +247,8 @@ export function useVendorState() {
       activeStoreId: ctx.activeStoreId,
       vendorProfile: ctx.vendorProfile,
       categories: ctx.categories,
+      masterCatalog: ctx.masterCatalog,
+      masterCatalogById: ctx.masterCatalogById,
       products: ctx.products,
       orders: ctx.orders,
       hasStores: ctx.stores.length > 0,
@@ -248,6 +278,8 @@ export function useVendorState() {
     activeStoreId: s.activeStoreId,
     vendorProfile: null,
     categories: [],
+    masterCatalog,
+    masterCatalogById: masterById,
     products: store ? s.allProducts.filter((p) => p.storeId === store.id) : [],
     orders: store ? s.allOrders.filter((o) => o.storeId === store.id) : [],
     hasStores: s.stores.length > 0,

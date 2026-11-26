@@ -1,14 +1,149 @@
 import { connection } from 'next/server';
 import { cookies } from 'next/headers';
-import { UserRole, VerificationStatus, MarketplaceStatus, GstStatus } from '@/generated/prisma/enums';
+import {
+  GstStatus,
+  MarketplaceStatus,
+  UnitType,
+  UserRole,
+  VerificationStatus,
+} from '@/generated/prisma/enums';
 import { requirePortalAccess } from '@/lib/auth/guards';
 import type {
   CategoryOptionDto,
+  MasterProduct,
+  StoreProduct,
   VendorProfileDto,
   VendorStoreInfo,
 } from '@/types/vendor';
 
 export const ACTIVE_STORE_COOKIE = 'vh_active_store_id';
+const DEFAULT_PRODUCT_IMAGE = '/images/placeholder-product.svg';
+
+export function toNumericValue(
+  value: { toNumber?: () => number } | number | string
+): number {
+  if (typeof value === 'object' && value !== null && 'toNumber' in value && typeof value.toNumber === 'function') {
+    return value.toNumber();
+  }
+  return Number(value);
+}
+
+export function formatMasterProductUnit(
+  unitValue: { toNumber?: () => number } | number | string,
+  unitType: UnitType
+): string {
+  const num = Number(toNumericValue(unitValue).toFixed(3));
+  switch (unitType) {
+    case UnitType.G:
+      return `${num} g`;
+    case UnitType.KG:
+      return `${num} kg`;
+    case UnitType.ML:
+      return `${num} ml`;
+    case UnitType.L:
+      return `${num} L`;
+    case UnitType.PIECE:
+      return `${num} ${num === 1 ? 'pc' : 'pcs'}`;
+    case UnitType.PACK:
+      return `${num} ${num === 1 ? 'pack' : 'packs'}`;
+    case UnitType.DOZEN:
+      return `${num} dozen`;
+    default:
+      return `${num}`;
+  }
+}
+
+export interface MasterProductRecordShape {
+  id: string;
+  categoryId: string;
+  name: string;
+  brand: string | null;
+  unitValue: { toNumber?: () => number } | number | string;
+  unitType: UnitType;
+  mrp: { toNumber?: () => number } | number | string;
+  imageUrl: string;
+  description: string | null;
+  isActive: boolean;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+}
+
+export interface StoreProductRecordShape {
+  id: string;
+  storeId: string;
+  masterProductId: string;
+  sellingPrice: { toNumber?: () => number } | number | string;
+  stockQuantity: number;
+  isAvailable: boolean;
+  masterProduct: MasterProductRecordShape;
+}
+
+export function mapMasterProductToDto(record: MasterProductRecordShape): MasterProduct {
+  const unitVal = Number(toNumericValue(record.unitValue).toFixed(3));
+  const mrpNum = Number(toNumericValue(record.mrp).toFixed(2));
+  return {
+    id: record.id,
+    name: record.name,
+    brand: record.brand ?? '',
+    category: record.category.name,
+    categoryId: record.categoryId,
+    description: record.description ?? '',
+    unit: formatMasterProductUnit(unitVal, record.unitType),
+    unitValue: unitVal,
+    unitType: record.unitType,
+    mrp: mrpNum,
+    image: record.imageUrl || DEFAULT_PRODUCT_IMAGE,
+    active: record.isActive,
+  };
+}
+
+export function mapStoreProductToDto(record: StoreProductRecordShape): StoreProduct {
+  const sellingPriceNum = Number(toNumericValue(record.sellingPrice).toFixed(2));
+  return {
+    id: record.id,
+    storeId: record.storeId,
+    masterProductId: record.masterProductId,
+    sellingPrice: sellingPriceNum,
+    quantity: record.stockQuantity,
+    available: record.isAvailable && record.stockQuantity > 0,
+    masterProduct: mapMasterProductToDto(record.masterProduct),
+  };
+}
+
+export const MASTER_PRODUCT_SELECT = {
+  id: true,
+  categoryId: true,
+  name: true,
+  brand: true,
+  unitValue: true,
+  unitType: true,
+  mrp: true,
+  imageUrl: true,
+  description: true,
+  isActive: true,
+  category: {
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+    },
+  },
+} as const;
+
+export const STORE_PRODUCT_SELECT = {
+  id: true,
+  storeId: true,
+  masterProductId: true,
+  sellingPrice: true,
+  stockQuantity: true,
+  isAvailable: true,
+  masterProduct: {
+    select: MASTER_PRODUCT_SELECT,
+  },
+} as const;
 
 /**
  * Resolves the authenticated vendor and their authoritative VendorProfile from PostgreSQL.
@@ -291,19 +426,211 @@ export async function getActiveCategories(): Promise<CategoryOptionDto[]> {
 }
 
 /**
+ * Resolves the authenticated vendor's currently active owned Store on the server.
+ * Uses the active-store cookie only if it matches a store owned by this vendorProfile;
+ * otherwise falls back to the vendor's first owned store, or null if the vendor owns zero stores.
+ */
+export async function resolveAuthenticatedActiveStore(
+  existingVendorProfile?: VendorProfileDto
+): Promise<{ vendorProfile: VendorProfileDto; activeStore: { id: string; name: string } | null }> {
+  await connection();
+  const vendorProfile =
+    existingVendorProfile ?? (await getAuthenticatedVendorProfile()).vendorProfile;
+  const { prisma } = await import('@/lib/prisma');
+
+  const ownedStores = await prisma.store.findMany({
+    where: { vendorProfileId: vendorProfile.id },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, name: true },
+  });
+
+  if (ownedStores.length === 0) {
+    return { vendorProfile, activeStore: null };
+  }
+
+  const cookieStore = await cookies();
+  const activeCookieVal = cookieStore.get(ACTIVE_STORE_COOKIE)?.value;
+  const matched = activeCookieVal
+    ? ownedStores.find((s) => s.id === activeCookieVal)
+    : undefined;
+
+  return {
+    vendorProfile,
+    activeStore: matched ?? ownedStores[0],
+  };
+}
+
+/**
+ * Retrieves active platform-owned MasterProduct records (read-only for vendors).
+ * Loads only active MasterProducts belonging to active Categories.
+ */
+export async function getActiveMasterCatalog(): Promise<MasterProduct[]> {
+  await connection();
+  await getAuthenticatedVendorProfile();
+  const { prisma } = await import('@/lib/prisma');
+
+  const records = await prisma.masterProduct.findMany({
+    where: {
+      isActive: true,
+      category: { isActive: true },
+    },
+    select: MASTER_PRODUCT_SELECT,
+    orderBy: [{ category: { name: 'asc' } }, { name: 'asc' }],
+  });
+
+  return records.map(mapMasterProductToDto);
+}
+
+/**
+ * Retrieves StoreProduct inventory records strictly for a specific owned Store.
+ * Fails closed (returns empty array) if the store does not belong to the authenticated vendor.
+ */
+export async function getAuthenticatedStoreProducts(storeId: string): Promise<StoreProduct[]> {
+  await connection();
+  const { vendorProfile } = await getAuthenticatedVendorProfile();
+  const { prisma } = await import('@/lib/prisma');
+
+  const ownedStore = await prisma.store.findFirst({
+    where: {
+      id: storeId,
+      vendorProfileId: vendorProfile.id,
+    },
+    select: { id: true },
+  });
+
+  if (!ownedStore) {
+    return [];
+  }
+
+  const records = await prisma.storeProduct.findMany({
+    where: {
+      storeId: ownedStore.id,
+      store: { vendorProfileId: vendorProfile.id },
+    },
+    select: STORE_PRODUCT_SELECT,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return records.map(mapStoreProductToDto);
+}
+
+/**
+ * Retrieves StoreProduct inventory records belonging ONLY to the current active owned Store.
+ */
+export async function getAuthenticatedActiveStoreProducts(): Promise<{
+  activeStoreId: string | null;
+  products: StoreProduct[];
+}> {
+  const { vendorProfile, activeStore } = await resolveAuthenticatedActiveStore();
+  if (!activeStore) {
+    return { activeStoreId: null, products: [] };
+  }
+
+  const { prisma } = await import('@/lib/prisma');
+  const records = await prisma.storeProduct.findMany({
+    where: {
+      storeId: activeStore.id,
+      store: { vendorProfileId: vendorProfile.id },
+    },
+    select: STORE_PRODUCT_SELECT,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return {
+    activeStoreId: activeStore.id,
+    products: records.map(mapStoreProductToDto),
+  };
+}
+
+/**
  * Combined retrieval for the VendorLayout Server Component:
  * - Authenticated VendorProfile
  * - Authenticated Vendor's Stores
  * - Currently Active Store ID (resolved from cookie or fallback)
  * - Available Categories
+ * - Active Platform Master Catalog
+ * - StoreProducts belonging strictly to this vendor's owned stores
  */
 export async function getAuthenticatedVendorData() {
   await connection();
   const { user, vendorProfile } = await getAuthenticatedVendorProfile();
-  const stores = await getAuthenticatedVendorStores();
-  const categories = await getActiveCategories();
+  const { prisma } = await import('@/lib/prisma');
 
-  const cookieStore = await cookies();
+  const [storeRecords, categories, masterRecords, storeProductRecords, cookieStore] =
+    await Promise.all([
+      prisma.store.findMany({
+        where: { vendorProfileId: vendorProfile.id },
+        orderBy: { createdAt: 'asc' },
+        select: {
+          id: true,
+          vendorProfileId: true,
+          categoryId: true,
+          name: true,
+          description: true,
+          phone: true,
+          email: true,
+          addressLine1: true,
+          addressLine2: true,
+          area: true,
+          city: true,
+          state: true,
+          postalCode: true,
+          openingTime: true,
+          closingTime: true,
+          deliveryRadiusKm: true,
+          minimumOrderAmount: true,
+          isOpen: true,
+          verificationStatus: true,
+          marketplaceStatus: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+          businessDetails: {
+            select: {
+              id: true,
+              gstStatus: true,
+              gstin: true,
+              legalBusinessName: true,
+              gstVerified: true,
+            },
+          },
+        },
+      }),
+      prisma.category.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.masterProduct.findMany({
+        where: {
+          isActive: true,
+          category: { isActive: true },
+        },
+        select: MASTER_PRODUCT_SELECT,
+        orderBy: [{ category: { name: 'asc' } }, { name: 'asc' }],
+      }),
+      prisma.storeProduct.findMany({
+        where: {
+          store: { vendorProfileId: vendorProfile.id },
+        },
+        select: STORE_PRODUCT_SELECT,
+        orderBy: { createdAt: 'desc' },
+      }),
+      cookies(),
+    ]);
+
+  const stores = storeRecords.map((s) => mapStoreToVendorStoreInfo(s, vendorProfile.ownerName));
+  const masterCatalog = masterRecords.map(mapMasterProductToDto);
+  const storeProducts = storeProductRecords.map(mapStoreProductToDto);
+
   const activeCookieVal = cookieStore.get(ACTIVE_STORE_COOKIE)?.value;
 
   let activeStoreId: string | null = null;
@@ -319,5 +646,7 @@ export async function getAuthenticatedVendorData() {
     stores,
     activeStoreId,
     categories,
+    masterCatalog,
+    storeProducts,
   };
 }

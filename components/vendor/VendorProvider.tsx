@@ -4,21 +4,30 @@ import React, { createContext, useContext, useState, useTransition, useMemo } fr
 import { useRouter } from 'next/navigation';
 import type {
   CategoryOptionDto,
+  MasterProduct,
   StoreProduct,
   VendorOrder,
   VendorOrderStatus,
   VendorProfileDto,
   VendorStoreInfo,
 } from '@/types/vendor';
+import { initialVendorOrders } from '@/data/vendorData';
 import {
-  initialStoreProducts,
-  initialVendorOrders,
-} from '@/data/vendorData';
-import {
+  addStoreProductStockAction,
+  createStoreProductAction,
+  removeStoreProductAction,
   setActiveStoreCookieAction,
+  setStoreProductStockAction,
   updateStoreDetailsAction,
   updateStoreOperatingStatusAction,
+  updateStoreProductAvailabilityAction,
+  updateStoreProductPriceAction,
 } from '@/lib/vendor/actions';
+
+export interface InventoryMutationResult {
+  success: boolean;
+  error?: string;
+}
 
 export interface VendorContextValue {
   vendorProfile: VendorProfileDto;
@@ -26,6 +35,8 @@ export interface VendorContextValue {
   store: VendorStoreInfo | null;
   activeStoreId: string | null;
   categories: CategoryOptionDto[];
+  masterCatalog: MasterProduct[];
+  masterCatalogById: Record<string, MasterProduct>;
   products: StoreProduct[];
   orders: VendorOrder[];
   isPending: boolean;
@@ -33,15 +44,19 @@ export interface VendorContextValue {
     activateCreatedStore: (createdStore: VendorStoreInfo) => void;
     switchStore: (storeId: string) => Promise<void>;
     updateStore: (patch: Partial<VendorStoreInfo>) => Promise<void>;
-    addProduct: (masterProductId: string, sellingPrice: number, quantity: number) => void;
+    addProduct: (
+      masterProductId: string,
+      sellingPrice: number,
+      quantity: number
+    ) => Promise<InventoryMutationResult>;
     updateProduct: (
       id: string,
       patch: Partial<Pick<StoreProduct, 'sellingPrice' | 'quantity' | 'available'>>
-    ) => void;
-    addStock: (id: string, amount: number) => void;
-    setStock: (id: string, quantity: number) => void;
-    removeProduct: (id: string) => void;
-    restockProduct: (id: string, additionalUnits: number) => void;
+    ) => Promise<InventoryMutationResult>;
+    addStock: (id: string, amount: number) => Promise<InventoryMutationResult>;
+    setStock: (id: string, quantity: number) => Promise<InventoryMutationResult>;
+    removeProduct: (id: string) => Promise<InventoryMutationResult>;
+    restockProduct: (id: string, additionalUnits: number) => Promise<InventoryMutationResult>;
     advanceOrder: (id: string) => void;
     updateOrderStatus: (orderId: string, nextStatus: VendorOrderStatus) => void;
     cancelOrder: (orderId: string) => void;
@@ -59,6 +74,8 @@ interface VendorProviderProps {
   initialStores: VendorStoreInfo[];
   initialActiveStoreId: string | null;
   categories: CategoryOptionDto[];
+  masterCatalog: MasterProduct[];
+  initialStoreProducts: StoreProduct[];
   children: React.ReactNode;
 }
 
@@ -67,6 +84,8 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
   initialStores,
   initialActiveStoreId,
   categories,
+  masterCatalog,
+  initialStoreProducts,
   children,
 }) => {
   const router = useRouter();
@@ -79,6 +98,13 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
   );
   const [activeStoreId, setActiveStoreId] = useState<string | null>(initialActiveStoreId);
   const [pendingCreatedStore, setPendingCreatedStore] = useState<VendorStoreInfo | null>(null);
+
+  const [prevInitialStoreProducts, setPrevInitialStoreProducts] =
+    useState<StoreProduct[]>(initialStoreProducts);
+  const [allProducts, setAllProducts] = useState<StoreProduct[]>(initialStoreProducts);
+
+  // In-memory orders remain mock for Phase 2 prototype continuity until Phase 5C+
+  const [allOrders, setAllOrders] = useState<VendorOrder[]>(initialVendorOrders);
 
   if (prevInitialStores !== initialStores) {
     setPrevInitialStores(initialStores);
@@ -101,9 +127,10 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
     }
   }
 
-  // In-memory products & orders for Phase 2 prototype continuity until Phase 5B
-  const [allProducts, setAllProducts] = useState<StoreProduct[]>(initialStoreProducts);
-  const [allOrders, setAllOrders] = useState<VendorOrder[]>(initialVendorOrders);
+  if (prevInitialStoreProducts !== initialStoreProducts) {
+    setPrevInitialStoreProducts(initialStoreProducts);
+    setAllProducts(initialStoreProducts);
+  }
 
   // Compute active store
   const store = useMemo(() => {
@@ -111,10 +138,17 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
     return stores.find((s) => s.id === activeStoreId) ?? stores[0] ?? null;
   }, [stores, activeStoreId]);
 
-  // Keep activeStoreId in sync if stores change
   const currentActiveId = store ? store.id : null;
 
-  // Filter products and orders for active store
+  const masterCatalogById = useMemo<Record<string, MasterProduct>>(() => {
+    const map: Record<string, MasterProduct> = {};
+    for (const mp of masterCatalog) {
+      map[mp.id] = mp;
+    }
+    return map;
+  }, [masterCatalog]);
+
+  // Filter real PostgreSQL StoreProducts strictly for the current active store
   const products = useMemo(() => {
     if (!currentActiveId) return [];
     return allProducts.filter((p) => p.storeId === currentActiveId);
@@ -126,6 +160,14 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
   }, [allOrders, currentActiveId]);
 
   const actions = useMemo(() => {
+    const upsertLocalProduct = (updatedProduct: StoreProduct) => {
+      setAllProducts((prev) =>
+        prev.some((p) => p.id === updatedProduct.id)
+          ? prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p))
+          : [updatedProduct, ...prev]
+      );
+    };
+
     return {
       activateCreatedStore(createdStore: VendorStoreInfo) {
         setPendingCreatedStore(createdStore);
@@ -151,18 +193,15 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
         if (!store) return;
         const targetId = store.id;
 
-        // Optimistically update local state
         setStores((prev) =>
           prev.map((s) => (s.id === targetId ? { ...s, ...patch } : s))
         );
 
         startTransition(async () => {
-          // If operating status (isOpen) changed, persist to PostgreSQL
           if (patch.isOpen !== undefined) {
             await updateStoreOperatingStatusAction(targetId, patch.isOpen);
           }
 
-          // If editable details changed, persist to PostgreSQL
           const hasDetailUpdates =
             patch.description !== undefined ||
             patch.email !== undefined ||
@@ -198,67 +237,110 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
         });
       },
 
-      addProduct(masterProductId: string, sellingPrice: number, quantity: number) {
-        if (!currentActiveId) return;
-        if (allProducts.some((p) => p.storeId === currentActiveId && p.masterProductId === masterProductId)) return;
-        const product: StoreProduct = {
-          id: `sp-${Date.now()}`,
-          storeId: currentActiveId,
+      async addProduct(
+        masterProductId: string,
+        sellingPrice: number,
+        quantity: number
+      ): Promise<InventoryMutationResult> {
+        if (!currentActiveId) {
+          return { success: false, error: 'Please register and select a store first.' };
+        }
+        const result = await createStoreProductAction({
           masterProductId,
           sellingPrice,
-          quantity,
-          available: quantity > 0,
-        };
-        setAllProducts((prev) => [product, ...prev]);
+          stockQuantity: quantity,
+          expectedStoreId: currentActiveId,
+        });
+        if (!result.success) {
+          return { success: false, error: result.error };
+        }
+        upsertLocalProduct(result.data.product);
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
 
-      updateProduct(
+      async updateProduct(
         id: string,
         patch: Partial<Pick<StoreProduct, 'sellingPrice' | 'quantity' | 'available'>>
-      ) {
-        setAllProducts((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, ...patch } : p))
-        );
+      ): Promise<InventoryMutationResult> {
+        if (patch.sellingPrice !== undefined) {
+          const res = await updateStoreProductPriceAction(id, patch.sellingPrice);
+          if (!res.success) {
+            return { success: false, error: res.error };
+          }
+          upsertLocalProduct(res.data.product);
+        }
+
+        if (patch.quantity !== undefined) {
+          const res = await setStoreProductStockAction(id, patch.quantity);
+          if (!res.success) {
+            return { success: false, error: res.error };
+          }
+          upsertLocalProduct(res.data.product);
+        }
+
+        if (patch.available !== undefined) {
+          const res = await updateStoreProductAvailabilityAction(id, patch.available);
+          if (!res.success) {
+            return { success: false, error: res.error };
+          }
+          upsertLocalProduct(res.data.product);
+        }
+
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
 
-      addStock(id: string, amount: number) {
-        if (!Number.isInteger(amount) || amount <= 0) return;
-        setAllProducts((prev) =>
-          prev.map((p) =>
-            p.id === id
-              ? { ...p, quantity: p.quantity + amount, available: p.quantity <= 0 ? true : p.available }
-              : p
-          )
-        );
+      async addStock(id: string, amount: number): Promise<InventoryMutationResult> {
+        const res = await addStoreProductStockAction(id, amount);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
+        upsertLocalProduct(res.data.product);
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
 
-      setStock(id: string, quantity: number) {
-        if (!Number.isInteger(quantity) || quantity < 0) return;
-        setAllProducts((prev) =>
-          prev.map((p) =>
-            p.id === id
-              ? { ...p, quantity, available: quantity <= 0 ? false : p.quantity <= 0 ? true : p.available }
-              : p
-          )
-        );
+      async setStock(id: string, quantity: number): Promise<InventoryMutationResult> {
+        const res = await setStoreProductStockAction(id, quantity);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
+        upsertLocalProduct(res.data.product);
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
 
-      removeProduct(id: string) {
-        setAllProducts((prev) => prev.filter((p) => p.id !== id));
+      async removeProduct(id: string): Promise<InventoryMutationResult> {
+        const res = await removeStoreProductAction(id);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
+        setAllProducts((prev) => prev.filter((p) => p.id !== res.data.deletedId));
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
 
-      restockProduct(id: string, additionalUnits: number) {
-        setAllProducts((prev) =>
-          prev.map((p) =>
-            p.id === id
-              ? {
-                  ...p,
-                  quantity: p.quantity + additionalUnits,
-                  available: true,
-                }
-              : p
-          )
-        );
+      async restockProduct(id: string, additionalUnits: number): Promise<InventoryMutationResult> {
+        const res = await addStoreProductStockAction(id, additionalUnits);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
+        upsertLocalProduct(res.data.product);
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
 
       advanceOrder(id: string) {
@@ -285,7 +367,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
         );
       },
     };
-  }, [stores, store, currentActiveId, allProducts, router]);
+  }, [stores, store, currentActiveId, router]);
 
   const value: VendorContextValue = {
     vendorProfile,
@@ -293,6 +375,8 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
     store,
     activeStoreId: currentActiveId,
     categories,
+    masterCatalog,
+    masterCatalogById,
     products,
     orders,
     isPending,

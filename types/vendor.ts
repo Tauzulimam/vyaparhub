@@ -6,8 +6,11 @@ export interface MasterProduct {
   name: string;
   brand: string;
   category: string;
+  categoryId?: string;
   description: string;
   unit: string;
+  unitValue?: number;
+  unitType?: string;
   mrp: number;
   image: string;
   active: boolean;
@@ -21,6 +24,7 @@ export interface StoreProduct {
   sellingPrice: number;
   quantity: number;
   available: boolean;
+  masterProduct?: MasterProduct;
 }
 
 export type StockState = 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
@@ -109,6 +113,14 @@ export interface UpdateStoreDetailsInput {
   closingTime?: string;
   deliveryRadiusKm?: number;
   minimumOrderAmount?: number;
+}
+
+export interface CreateStoreProductInput {
+  masterProductId: string;
+  sellingPrice: number;
+  stockQuantity: number;
+  /** Optional client-known active store id used strictly as a fail-closed consistency check (never trusted for authorization). */
+  expectedStoreId?: string | null;
 }
 
 export type VendorOrderStatus =

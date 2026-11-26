@@ -6,7 +6,6 @@ import { OrderCard } from '@/components/vendor/OrderCard';
 import { StoreStatusControl } from '@/components/vendor/StoreStatusControl';
 import { Icon, type IconName } from '@/components/vendor/Icon';
 import { Badge, Card, formatINR, PageHeader, SectionTitle, StockBadge } from '@/components/vendor/ui';
-import { masterById } from '@/data/vendorData';
 import { getStockState, useVendorState } from '@/lib/vendorStore';
 
 const StatCard: React.FC<{ label: string; value: string; hint?: string; icon: IconName; tone?: 'green' | 'terracotta' | 'red' }> = ({
@@ -39,7 +38,7 @@ const QUICK_ACTIONS: { href: string; label: string; icon: IconName }[] = [
 ];
 
 export default function VendorDashboardPage() {
-  const { store, stores, vendorProfile, products, orders } = useVendorState();
+  const { store, stores, vendorProfile, products, orders, masterCatalogById } = useVendorState();
 
   if (!store || stores.length === 0) {
     const ownerFirst = vendorProfile?.ownerName?.split(' ')[0] || 'Partner';
@@ -145,7 +144,9 @@ export default function VendorDashboardPage() {
               <ul className="space-y-2">
                 {lowStock.map((p) => (
                   <li key={p.id} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="truncate">{masterById[p.masterProductId]?.name}</span>
+                    <span className="truncate">
+                      {p.masterProduct?.name ?? masterCatalogById[p.masterProductId]?.name ?? 'Catalog item'}
+                    </span>
                     <StockBadge state={getStockState(p.quantity)} quantity={p.quantity} />
                   </li>
                 ))}

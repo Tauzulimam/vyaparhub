@@ -10,10 +10,22 @@ import {
 import {
   ACTIVE_STORE_COOKIE,
   getAuthenticatedVendorProfile,
+  mapStoreProductToDto,
   mapStoreToVendorStoreInfo,
+  resolveAuthenticatedActiveStore,
+  STORE_PRODUCT_SELECT,
+  toNumericValue,
 } from '@/lib/vendor/server';
+import {
+  computeAddedStockState,
+  computeCorrectedStockState,
+  validateSellingPrice,
+  validateWholeQuantity,
+} from '@/lib/vendor/inventoryRules';
 import type {
   CreateStoreInput,
+  CreateStoreProductInput,
+  StoreProduct,
   UpdateStoreDetailsInput,
   VendorStoreInfo,
 } from '@/types/vendor';
@@ -418,6 +430,515 @@ export async function setActiveStoreCookieAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to switch active store.',
+    };
+  }
+}
+
+/**
+ * Adds an existing platform MasterProduct to the authenticated vendor's active owned Store.
+ * Never trusts client-supplied store ownership or MasterProduct MRP/metadata.
+ */
+export async function createStoreProductAction(
+  input: CreateStoreProductInput
+): Promise<ActionResult<{ product: StoreProduct }>> {
+  try {
+    const { vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
+
+    if (!activeStore) {
+      return {
+        success: false,
+        error: 'Please register a store before adding products from the catalog.',
+      };
+    }
+
+    if (
+      input.expectedStoreId !== undefined &&
+      input.expectedStoreId !== null &&
+      input.expectedStoreId !== activeStore.id
+    ) {
+      return {
+        success: false,
+        error: 'Your active store changed in another session. Please refresh and try again.',
+      };
+    }
+
+    const masterProductId = input.masterProductId?.trim() || '';
+    if (!masterProductId) {
+      return { success: false, error: 'Please select a valid catalog product.' };
+    }
+
+    const qtyCheck = validateWholeQuantity(input.stockQuantity, 0, 'Available quantity');
+    if (!qtyCheck.valid) {
+      return { success: false, error: qtyCheck.error };
+    }
+
+    const { prisma } = await import('@/lib/prisma');
+
+    const masterProduct = await prisma.masterProduct.findFirst({
+      where: {
+        id: masterProductId,
+        isActive: true,
+        category: { isActive: true },
+      },
+      select: {
+        id: true,
+        mrp: true,
+      },
+    });
+
+    if (!masterProduct) {
+      return {
+        success: false,
+        error: 'Selected catalog product does not exist or is currently inactive.',
+      };
+    }
+
+    const authoritativeMrp = toNumericValue(masterProduct.mrp);
+    const priceCheck = validateSellingPrice(input.sellingPrice, authoritativeMrp);
+    if (!priceCheck.valid) {
+      return { success: false, error: priceCheck.error };
+    }
+
+    const existingListing = await prisma.storeProduct.findUnique({
+      where: {
+        storeId_masterProductId: {
+          storeId: activeStore.id,
+          masterProductId: masterProduct.id,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existingListing) {
+      return {
+        success: false,
+        error: 'This product is already listed in your active store.',
+      };
+    }
+
+    const created = await prisma.storeProduct.create({
+      data: {
+        storeId: activeStore.id,
+        masterProductId: masterProduct.id,
+        sellingPrice: priceCheck.value,
+        stockQuantity: qtyCheck.value,
+        isAvailable: qtyCheck.value > 0,
+      },
+      select: STORE_PRODUCT_SELECT,
+    });
+
+    revalidatePath('/vendor', 'layout');
+
+    return {
+      success: true,
+      data: { product: mapStoreProductToDto(created) },
+    };
+  } catch (error: unknown) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === 'P2002'
+    ) {
+      return {
+        success: false,
+        error: 'This product is already listed in your active store.',
+      };
+    }
+    console.error('Failed to add catalog product to store:', error);
+    return {
+      success: false,
+      error: 'Failed to add product to store. Please try again.',
+    };
+  }
+}
+
+/**
+ * Normal restock flow: adds a positive whole-number quantity to an existing StoreProduct
+ * belonging strictly to the authenticated vendor's active owned Store.
+ */
+export async function addStoreProductStockAction(
+  storeProductId: string,
+  quantityToAdd: number
+): Promise<ActionResult<{ product: StoreProduct }>> {
+  try {
+    const cleanId = storeProductId?.trim() || '';
+    if (!cleanId) {
+      return { success: false, error: 'Invalid store product reference.' };
+    }
+
+    const qtyCheck = validateWholeQuantity(quantityToAdd, 1, 'Quantity to add');
+    if (!qtyCheck.valid) {
+      return { success: false, error: qtyCheck.error };
+    }
+
+    const { vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
+    if (!activeStore) {
+      return { success: false, error: 'No active store found for your account.' };
+    }
+
+    const { prisma } = await import('@/lib/prisma');
+
+    const outcome = await prisma.$transaction(async (tx) => {
+      const existing = await tx.storeProduct.findFirst({
+        where: {
+          id: cleanId,
+          storeId: activeStore.id,
+          store: { vendorProfileId: vendorProfile.id },
+        },
+        select: {
+          id: true,
+          stockQuantity: true,
+          isAvailable: true,
+        },
+      });
+
+      if (!existing) {
+        return { ok: false as const, error: 'Inventory item not found in your active store or unauthorized.' };
+      }
+
+      const nextState = computeAddedStockState(
+        existing.stockQuantity,
+        existing.isAvailable,
+        qtyCheck.value
+      );
+      if (!nextState.valid) {
+        return { ok: false as const, error: nextState.error };
+      }
+
+      const updated = await tx.storeProduct.update({
+        where: { id: existing.id },
+        data: {
+          stockQuantity: nextState.value.stockQuantity,
+          isAvailable: nextState.value.isAvailable,
+        },
+        select: STORE_PRODUCT_SELECT,
+      });
+
+      return { ok: true as const, updated };
+    });
+
+    if (!outcome.ok) {
+      return { success: false, error: outcome.error };
+    }
+
+    revalidatePath('/vendor', 'layout');
+
+    return {
+      success: true,
+      data: { product: mapStoreProductToDto(outcome.updated) },
+    };
+  } catch (error: unknown) {
+    console.error('Failed to add store product stock:', error);
+    return {
+      success: false,
+      error: 'Failed to update stock. Please try again.',
+    };
+  }
+}
+
+/**
+ * Explicit stock correction flow: sets exact non-negative whole-number stock quantity
+ * for a StoreProduct in the authenticated vendor's active owned Store.
+ * Setting quantity to 0 forces isAvailable = false (unavailable / out of stock).
+ */
+export async function setStoreProductStockAction(
+  storeProductId: string,
+  exactQuantity: number
+): Promise<ActionResult<{ product: StoreProduct }>> {
+  try {
+    const cleanId = storeProductId?.trim() || '';
+    if (!cleanId) {
+      return { success: false, error: 'Invalid store product reference.' };
+    }
+
+    const qtyCheck = validateWholeQuantity(exactQuantity, 0, 'Stock quantity');
+    if (!qtyCheck.valid) {
+      return { success: false, error: qtyCheck.error };
+    }
+
+    const { vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
+    if (!activeStore) {
+      return { success: false, error: 'No active store found for your account.' };
+    }
+
+    const { prisma } = await import('@/lib/prisma');
+
+    const outcome = await prisma.$transaction(async (tx) => {
+      const existing = await tx.storeProduct.findFirst({
+        where: {
+          id: cleanId,
+          storeId: activeStore.id,
+          store: { vendorProfileId: vendorProfile.id },
+        },
+        select: {
+          id: true,
+          stockQuantity: true,
+          isAvailable: true,
+        },
+      });
+
+      if (!existing) {
+        return { ok: false as const, error: 'Inventory item not found in your active store or unauthorized.' };
+      }
+
+      const nextState = computeCorrectedStockState(
+        existing.stockQuantity,
+        existing.isAvailable,
+        qtyCheck.value
+      );
+      if (!nextState.valid) {
+        return { ok: false as const, error: nextState.error };
+      }
+
+      const updated = await tx.storeProduct.update({
+        where: { id: existing.id },
+        data: {
+          stockQuantity: nextState.value.stockQuantity,
+          isAvailable: nextState.value.isAvailable,
+        },
+        select: STORE_PRODUCT_SELECT,
+      });
+
+      return { ok: true as const, updated };
+    });
+
+    if (!outcome.ok) {
+      return { success: false, error: outcome.error };
+    }
+
+    revalidatePath('/vendor', 'layout');
+
+    return {
+      success: true,
+      data: { product: mapStoreProductToDto(outcome.updated) },
+    };
+  } catch (error: unknown) {
+    console.error('Failed to correct store product stock:', error);
+    return {
+      success: false,
+      error: 'Failed to correct stock quantity. Please try again.',
+    };
+  }
+}
+
+/**
+ * Updates store-specific selling price for a StoreProduct in the active owned Store.
+ * Enforces positive monetary value and authoritative MasterProduct MRP ceiling.
+ */
+export async function updateStoreProductPriceAction(
+  storeProductId: string,
+  sellingPrice: number
+): Promise<ActionResult<{ product: StoreProduct }>> {
+  try {
+    const cleanId = storeProductId?.trim() || '';
+    if (!cleanId) {
+      return { success: false, error: 'Invalid store product reference.' };
+    }
+
+    const { vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
+    if (!activeStore) {
+      return { success: false, error: 'No active store found for your account.' };
+    }
+
+    const { prisma } = await import('@/lib/prisma');
+
+    const existing = await prisma.storeProduct.findFirst({
+      where: {
+        id: cleanId,
+        storeId: activeStore.id,
+        store: { vendorProfileId: vendorProfile.id },
+      },
+      select: {
+        id: true,
+        masterProduct: {
+          select: { mrp: true },
+        },
+      },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Inventory item not found in your active store or unauthorized.',
+      };
+    }
+
+    const authoritativeMrp = toNumericValue(existing.masterProduct.mrp);
+    const priceCheck = validateSellingPrice(sellingPrice, authoritativeMrp);
+    if (!priceCheck.valid) {
+      return { success: false, error: priceCheck.error };
+    }
+
+    const updated = await prisma.storeProduct.update({
+      where: { id: existing.id },
+      data: { sellingPrice: priceCheck.value },
+      select: STORE_PRODUCT_SELECT,
+    });
+
+    revalidatePath('/vendor', 'layout');
+
+    return {
+      success: true,
+      data: { product: mapStoreProductToDto(updated) },
+    };
+  } catch (error: unknown) {
+    console.error('Failed to update store product price:', error);
+    return {
+      success: false,
+      error: 'Failed to update selling price. Please try again.',
+    };
+  }
+}
+
+/**
+ * Toggles customer-facing availability for a StoreProduct in the active owned Store.
+ * Out-of-stock products (stockQuantity <= 0) cannot be marked available.
+ */
+export async function updateStoreProductAvailabilityAction(
+  storeProductId: string,
+  isAvailable: boolean
+): Promise<ActionResult<{ product: StoreProduct }>> {
+  try {
+    const cleanId = storeProductId?.trim() || '';
+    if (!cleanId || typeof isAvailable !== 'boolean') {
+      return { success: false, error: 'Invalid availability update request.' };
+    }
+
+    const { vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
+    if (!activeStore) {
+      return { success: false, error: 'No active store found for your account.' };
+    }
+
+    const { prisma } = await import('@/lib/prisma');
+
+    const existing = await prisma.storeProduct.findFirst({
+      where: {
+        id: cleanId,
+        storeId: activeStore.id,
+        store: { vendorProfileId: vendorProfile.id },
+      },
+      select: {
+        id: true,
+        stockQuantity: true,
+      },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Inventory item not found in your active store or unauthorized.',
+      };
+    }
+
+    if (isAvailable && existing.stockQuantity <= 0) {
+      return {
+        success: false,
+        error: 'Cannot mark an out-of-stock product as available. Add stock first.',
+      };
+    }
+
+    const updated = await prisma.storeProduct.update({
+      where: { id: existing.id },
+      data: { isAvailable },
+      select: STORE_PRODUCT_SELECT,
+    });
+
+    revalidatePath('/vendor', 'layout');
+
+    return {
+      success: true,
+      data: { product: mapStoreProductToDto(updated) },
+    };
+  } catch (error: unknown) {
+    console.error('Failed to update store product availability:', error);
+    return {
+      success: false,
+      error: 'Failed to update product availability. Please try again.',
+    };
+  }
+}
+
+/**
+ * Removes an unreferenced StoreProduct from the authenticated vendor's active owned Store.
+ * Preserves historical OrderItem integrity if the product has prior order history.
+ */
+export async function removeStoreProductAction(
+  storeProductId: string
+): Promise<ActionResult<{ deletedId: string }>> {
+  try {
+    const cleanId = storeProductId?.trim() || '';
+    if (!cleanId) {
+      return { success: false, error: 'Invalid store product reference.' };
+    }
+
+    const { vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
+    if (!activeStore) {
+      return { success: false, error: 'No active store found for your account.' };
+    }
+
+    const { prisma } = await import('@/lib/prisma');
+
+    const existing = await prisma.storeProduct.findFirst({
+      where: {
+        id: cleanId,
+        storeId: activeStore.id,
+        store: { vendorProfileId: vendorProfile.id },
+      },
+      select: {
+        id: true,
+        _count: {
+          select: {
+            orderItems: true,
+            cartItems: true,
+          },
+        },
+      },
+    });
+
+    if (!existing) {
+      return {
+        success: false,
+        error: 'Inventory item not found in your active store or unauthorized.',
+      };
+    }
+
+    if (existing._count.orderItems > 0) {
+      return {
+        success: false,
+        error:
+          'Cannot remove a product linked to existing order history. Set stock to 0 or uncheck Available for sale instead.',
+      };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      if (existing._count.cartItems > 0) {
+        await tx.cartItem.deleteMany({
+          where: { storeProductId: existing.id },
+        });
+      }
+      await tx.storeProduct.delete({
+        where: { id: existing.id },
+      });
+    });
+
+    revalidatePath('/vendor', 'layout');
+
+    return {
+      success: true,
+      data: { deletedId: existing.id },
+    };
+  } catch (error: unknown) {
+    console.error('Failed to remove store product:', error);
+    return {
+      success: false,
+      error: 'Failed to remove product from store inventory. Please try again.',
     };
   }
 }
