@@ -18,10 +18,17 @@ export const StoreCard: React.FC<StoreCardProps> = ({
 }) => {
   const targetHref = href || `/stores/${store.id}`;
 
+  const deliveryRadiusLabel =
+    store.deliveryRadiusKm !== undefined && store.deliveryRadiusKm > 0
+      ? `Within ${store.deliveryRadiusKm} km`
+      : `${store.distanceKm} km away`;
+  const locationSummary =
+    store.area && store.city ? `${store.area}, ${store.city}` : store.address;
+
   const content = (
     <article
       onClick={() => onClick?.(store)}
-      aria-label={`View store ${store.name}, ${store.distanceKm} kilometers away`}
+      aria-label={`View store ${store.name} in ${locationSummary}`}
       className={`group flex flex-col bg-white border border-[#E2E8E3] rounded-2xl overflow-hidden cursor-pointer transition-all duration-150 hover:border-[#166534] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534] select-none h-full ${className}`}
     >
       {/* Store Banner / Image */}
@@ -34,7 +41,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({
           className="object-cover transition-transform duration-150 group-hover:scale-102"
         />
 
-        {/* Hyperlocal Distance Badge */}
+        {/* Hyperlocal Radius Badge */}
         <div className="absolute top-2.5 left-2.5">
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-white/95 text-[#166534] shadow-xs border border-[#E2E8E3]">
             <svg
@@ -56,7 +63,7 @@ export const StoreCard: React.FC<StoreCardProps> = ({
                 d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
               />
             </svg>
-            {store.distanceKm} km away
+            {deliveryRadiusLabel}
           </span>
         </div>
 
@@ -81,27 +88,32 @@ export const StoreCard: React.FC<StoreCardProps> = ({
             <h3 className="text-base font-bold text-[#17201A] group-hover:text-[#166534] transition-colors line-clamp-1">
               {store.name}
             </h3>
-            {/* Rating */}
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded bg-[#F59E0B]/15 text-[#B45309] shrink-0">
-              <svg
-                className="w-3.5 h-3.5 fill-[#F59E0B] text-[#F59E0B]"
-                viewBox="0 0 20 20"
-                aria-hidden="true"
-              >
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-              </svg>
-              {store.rating} ({store.reviewCount})
-            </span>
+            {store.reviewCount > 0 ? (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded bg-[#F59E0B]/15 text-[#B45309] shrink-0">
+                <svg
+                  className="w-3.5 h-3.5 fill-[#F59E0B] text-[#F59E0B]"
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                >
+                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                </svg>
+                {store.rating} ({store.reviewCount})
+              </span>
+            ) : store.minOrderAmount !== undefined ? (
+              <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded bg-[#F8FAF7] border border-[#E2E8E3] text-[#17201A] shrink-0">
+                Min ₹{store.minOrderAmount}
+              </span>
+            ) : null}
           </div>
 
           <p className="text-xs text-[#647067] mb-2 line-clamp-1">{store.category}</p>
         </div>
 
-        {/* Delivery ETA & Address */}
-        <div className="pt-2 border-t border-[#E2E8E3] flex items-center justify-between text-xs text-[#647067]">
-          <span className="flex items-center gap-1 font-medium text-[#17201A]">
+        {/* Hours / Delivery ETA & Location */}
+        <div className="pt-2 border-t border-[#E2E8E3] flex items-center justify-between gap-2 text-xs text-[#647067]">
+          <span className="flex items-center gap-1 font-medium text-[#17201A] truncate">
             <svg
-              className="w-3.5 h-3.5 text-[#166534]"
+              className="w-3.5 h-3.5 text-[#166534] shrink-0"
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -114,10 +126,10 @@ export const StoreCard: React.FC<StoreCardProps> = ({
                 d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            {store.deliveryTimeMin}
+            <span className="truncate">{store.timing || store.deliveryTimeMin}</span>
           </span>
-          <span className="truncate max-w-[150px] text-[#647067]">
-            {store.address}
+          <span className="truncate max-w-[140px] text-[#647067]">
+            {locationSummary}
           </span>
         </div>
       </div>

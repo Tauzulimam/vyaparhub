@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Navbar } from '@/components/layout/Navbar';
@@ -10,43 +10,38 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Button } from '@/components/ui/Button';
 import { SwitchCartModal } from '@/components/cart/SwitchCartModal';
-import { getStoreById, getProductsByStore } from '@/data/mockData';
-import { Product } from '@/types';
+import type { Product, Store } from '@/types';
 import { useMockCart } from '@/lib/mockCart';
 
 interface StoreDetailClientProps {
-  storeId: string;
+  store: Store;
+  products: Product[];
 }
 
-export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
-  const store = getStoreById(storeId);
-  const initialProducts = useMemo(() => getProductsByStore(storeId), [storeId]);
-
+export default function StoreDetailClient({ store, products }: StoreDetailClientProps) {
   const { cartCount, store: cartStore, addToCart, replaceCartWithProduct } = useMockCart();
   const [cartToast, setCartToast] = useState<string | null>(null);
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [inStockOnly, setInStockOnly] = useState<boolean>(false);
 
-  // Derive unique categories from products at this store
   const storeCategories = useMemo(() => {
     const cats = new Set<string>();
-    initialProducts.forEach((p) => cats.add(p.category));
+    products.forEach((p) => cats.add(p.category));
     return ['All', ...Array.from(cats)];
-  }, [initialProducts]);
+  }, [products]);
 
-  // In-store filtered products
   const filteredProducts = useMemo(() => {
-    let list = [...initialProducts];
+    let list = [...products];
 
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.trim().toLowerCase();
       list = list.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.brand.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q)
+          p.category.toLowerCase().includes(q) ||
+          (p.description && p.description.toLowerCase().includes(q))
       );
     }
 
@@ -54,12 +49,8 @@ export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
       list = list.filter((p) => p.category === selectedCategory);
     }
 
-    if (inStockOnly) {
-      list = list.filter((p) => p.inStock);
-    }
-
     return list;
-  }, [initialProducts, searchQuery, selectedCategory, inStockOnly]);
+  }, [products, searchQuery, selectedCategory]);
 
   const handleAddToCart = (product: Product) => {
     const result = addToCart(product, 1);
@@ -71,36 +62,12 @@ export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
     }
   };
 
-  // If store doesn't exist
-  if (!store) {
-    return (
-      <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
-        <Navbar />
-        <main className="flex-1 max-w-xl w-full mx-auto px-4 py-16 text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-white border border-[#E2E8E3] text-[#DC2626] flex items-center justify-center mx-auto text-2xl font-bold shadow-xs">
-            !
-          </div>
-          <h1 className="text-2xl font-bold text-[#17201A]">Store Not Found</h1>
-          <p className="text-sm text-[#647067]">
-            The store you requested could not be located in our active hyperlocal radius.
-          </p>
-          <div className="pt-2">
-            <Link href="/stores">
-              <Button variant="primary" size="md">
-                Browse All Nearby Stores
-              </Button>
-            </Link>
-          </div>
-        </main>
-        <Footer />
-        <MobileNav />
-      </div>
-    );
-  }
+  const locationLabel =
+    store.area && store.city ? `${store.area}, ${store.city}` : store.address;
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
-      <Navbar cartItemCount={cartCount} />
+      <Navbar cartItemCount={cartCount} currentLocation={locationLabel} />
 
       {/* Cart Toast Notification */}
       {cartToast && (
@@ -133,13 +100,16 @@ export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
             Stores
           </Link>
           <span>/</span>
-          <span className="text-[#17201A] font-semibold truncate max-w-[200px]">
+          <span className="text-[#17201A] font-semibold truncate max-w-[240px]">
             {store.name}
           </span>
         </nav>
 
         {/* Store Profile Banner Card */}
-        <section aria-labelledby="store-title" className="bg-white border border-[#E2E8E3] rounded-3xl p-6 sm:p-8 overflow-hidden shadow-xs">
+        <section
+          aria-labelledby="store-title"
+          className="bg-white border border-[#E2E8E3] rounded-3xl p-6 sm:p-8 overflow-hidden shadow-xs"
+        >
           <div className="flex flex-col md:flex-row gap-6 lg:gap-8 items-start">
             {/* Store Image */}
             <div className="relative w-full md:w-56 h-36 sm:h-44 rounded-2xl bg-[#F8FAF7] border border-[#E2E8E3] overflow-hidden shrink-0">
@@ -166,38 +136,44 @@ export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#166534]/10 text-[#166534]">
                   {store.category}
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-[#F59E0B]/15 text-[#B45309]">
-                  ★ {store.rating} ({store.reviewCount} reviews)
-                </span>
+                {store.minOrderAmount !== undefined && (
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#F8FAF7] border border-[#E2E8E3] text-[#17201A]">
+                    Min. order ₹{store.minOrderAmount}
+                  </span>
+                )}
               </div>
 
-              <h1 id="store-title" className="text-2xl sm:text-3xl font-extrabold text-[#17201A] tracking-tight">
+              <h1
+                id="store-title"
+                className="text-2xl sm:text-3xl font-extrabold text-[#17201A] tracking-tight"
+              >
                 {store.name}
               </h1>
 
-              <p className="text-xs sm:text-sm text-[#647067] max-w-2xl leading-relaxed">
-                {store.description}
-              </p>
+              {store.description && (
+                <p className="text-xs sm:text-sm text-[#647067] max-w-2xl leading-relaxed">
+                  {store.description}
+                </p>
+              )}
 
               {/* Meta details */}
               <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-[#647067] border-t border-[#E2E8E3]">
                 <span className="flex items-center gap-1 font-medium text-[#17201A]">
                   <span className="text-[#166534]">📍</span> {store.address}
                 </span>
-                <span className="flex items-center gap-1 font-semibold text-[#166534]">
-                  🚗 {store.distanceKm} km away
-                </span>
-                <span className="flex items-center gap-1">
-                  ⏱️ Delivery: <strong>{store.deliveryTimeMin}</strong>
-                </span>
-                {store.timing && (
-                  <span className="flex items-center gap-1">
-                    🕒 <strong>{store.timing}</strong>
+                {store.deliveryRadiusKm !== undefined && store.deliveryRadiusKm > 0 && (
+                  <span className="flex items-center gap-1 font-semibold text-[#166534]">
+                    🚗 Delivers within {store.deliveryRadiusKm} km
                   </span>
                 )}
-                {store.phone && (
-                  <span className="flex items-center gap-1 text-[#647067]">
-                    📞 {store.phone}
+                {store.timing && (
+                  <span className="flex items-center gap-1">
+                    🕒 Hours: <strong className="text-[#17201A]">{store.timing}</strong>
+                  </span>
+                )}
+                {store.minOrderAmount !== undefined && (
+                  <span className="flex items-center gap-1">
+                    🛒 Min. Order: <strong className="text-[#17201A]">₹{store.minOrderAmount}</strong>
                   </span>
                 )}
               </div>
@@ -205,66 +181,64 @@ export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
           </div>
 
           {/* Hyperlocal Cart Policy Callout */}
-          <aside aria-label="VyaparHub Cart Rule" className="mt-6 p-3.5 bg-[#F8FAF7] border border-[#E2E8E3] rounded-2xl flex items-center gap-3 text-xs text-[#647067]">
+          <aside
+            aria-label="VyaparHub Cart Rule"
+            className="mt-6 p-3.5 bg-[#F8FAF7] border border-[#E2E8E3] rounded-2xl flex items-center gap-3 text-xs text-[#647067]"
+          >
             <span className="text-base">ℹ️</span>
             <p>
-              <strong className="text-[#17201A]">VyaparHub Single-Store Cart Rule:</strong> Your cart can contain products from only one local store at a time. Products added from {store.name} will be fulfilled together.
+              <strong className="text-[#17201A]">VyaparHub Single-Store Cart Rule:</strong> Your cart can contain products from only one local store at a time. Prices and stock shown below are specific to {store.name}.
             </p>
           </aside>
         </section>
 
         {/* In-store Search & Category Filtering */}
-        <section aria-label="Store Catalog Filter" className="bg-white border border-[#E2E8E3] rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="w-full sm:max-w-md">
-              <SearchBar
-                placeholder={`Search in ${store.name}...`}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onClear={() => setSearchQuery('')}
-              />
-            </div>
-
-            <div className="flex items-center gap-4 self-start sm:self-auto text-xs">
-              <label className="inline-flex items-center gap-2 cursor-pointer font-medium text-[#17201A] select-none">
-                <input
-                  type="checkbox"
-                  checked={inStockOnly}
-                  onChange={(e) => setInStockOnly(e.target.checked)}
-                  className="w-4 h-4 rounded text-[#166534] border-[#E2E8E3] focus:ring-[#166534]"
+        {products.length > 0 && (
+          <section
+            aria-label="Store Catalog Filter"
+            className="bg-white border border-[#E2E8E3] rounded-2xl p-4 sm:p-5 space-y-4 shadow-xs"
+          >
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="w-full sm:max-w-md">
+                <SearchBar
+                  placeholder={`Search products in ${store.name}...`}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onClear={() => setSearchQuery('')}
                 />
-                <span>In-Stock Only</span>
-              </label>
+              </div>
 
-              <span className="text-[#647067]">
-                Showing <strong>{filteredProducts.length}</strong> items
-              </span>
+              <div className="flex items-center gap-4 self-start sm:self-auto text-xs">
+                <span className="text-[#647067]">
+                  Showing <strong className="text-[#17201A]">{filteredProducts.length}</strong> of{' '}
+                  {products.length} available {products.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
             </div>
-          </div>
 
-          {/* Category Pills */}
-          {storeCategories.length > 2 && (
-            <div className="pt-2 border-t border-[#E2E8E3] flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-              <span className="text-xs font-medium text-[#647067] shrink-0 mr-1">Section:</span>
-              {storeCategories.map((cat) => {
-                const isSelected = selectedCategory === cat;
-                return (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
-                      isSelected
-                        ? 'bg-[#166534] text-white shadow-xs'
-                        : 'bg-[#F8FAF7] border border-[#E2E8E3] text-[#647067] hover:border-[#166534] hover:text-[#17201A]'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
+            {storeCategories.length > 2 && (
+              <div className="pt-2 border-t border-[#E2E8E3] flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                <span className="text-xs font-medium text-[#647067] shrink-0 mr-1">Section:</span>
+                {storeCategories.map((cat) => {
+                  const isSelected = selectedCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                        isSelected
+                          ? 'bg-[#166534] text-white shadow-xs'
+                          : 'bg-[#F8FAF7] border border-[#E2E8E3] text-[#647067] hover:border-[#166534] hover:text-[#17201A]'
+                      }`}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Products Grid */}
         <section aria-label="Available Store Products">
@@ -278,6 +252,25 @@ export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
                 />
               ))}
             </div>
+          ) : products.length === 0 ? (
+            <div className="bg-white border border-[#E2E8E3] rounded-3xl p-10 text-center space-y-3 max-w-md mx-auto shadow-xs">
+              <div className="w-12 h-12 rounded-full bg-[#F8FAF7] border border-[#E2E8E3] text-[#647067] flex items-center justify-center mx-auto text-xl">
+                📦
+              </div>
+              <h3 className="text-base font-bold text-[#17201A]">
+                No available products right now
+              </h3>
+              <p className="text-xs text-[#647067]">
+                {store.name} does not currently have in-stock items listed for sale. Please check back later or browse other nearby stores.
+              </p>
+              <div className="pt-1">
+                <Link href="/stores">
+                  <Button variant="outline" size="sm">
+                    Browse Other Stores
+                  </Button>
+                </Link>
+              </div>
+            </div>
           ) : (
             <div className="bg-white border border-[#E2E8E3] rounded-3xl p-10 text-center space-y-3 max-w-md mx-auto shadow-xs">
               <div className="w-12 h-12 rounded-full bg-[#F8FAF7] border border-[#E2E8E3] text-[#647067] flex items-center justify-center mx-auto text-xl">
@@ -285,7 +278,7 @@ export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
               </div>
               <h3 className="text-base font-bold text-[#17201A]">No products found</h3>
               <p className="text-xs text-[#647067]">
-                No items in {store.name} matched your search or filters.
+                No items in {store.name} matched your search or category filter.
               </p>
               <Button
                 variant="outline"
@@ -293,7 +286,6 @@ export default function StoreDetailClient({ storeId }: StoreDetailClientProps) {
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedCategory('All');
-                  setInStockOnly(false);
                 }}
               >
                 Reset Store Filters

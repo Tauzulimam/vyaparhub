@@ -1,5 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Product } from '@/types';
 import { Button } from '@/components/ui/Button';
 
@@ -18,13 +19,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
     product.mrp > product.price
       ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
       : 0;
+  const productHref = `/products/${product.id}`;
 
   return (
     <article
       className={`group relative flex flex-col justify-between p-3.5 sm:p-4 bg-white border border-[#E2E8E3] rounded-2xl transition-all duration-150 hover:border-[#166534] hover:shadow-sm ${className}`}
     >
       <div>
-        {/* Top Badges: Discount & Store */}
+        {/* Top Badges: Discount & Stock */}
         <div className="flex items-center justify-between gap-1 mb-2">
           {discountPercent > 0 ? (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-[#F59E0B]/15 text-[#B45309]">
@@ -34,15 +36,23 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <span />
           )}
 
-          {!product.inStock && (
+          {!product.inStock ? (
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#DC2626]/10 text-[#DC2626]">
               Out of stock
             </span>
-          )}
+          ) : product.quantityAvailable !== undefined && product.quantityAvailable <= 5 ? (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#F59E0B]/15 text-[#B45309]">
+              {product.quantityAvailable} left
+            </span>
+          ) : null}
         </div>
 
         {/* Product Image */}
-        <div className="relative w-full aspect-square mb-3 rounded-xl bg-[#F8FAF7] border border-[#E2E8E3] overflow-hidden flex items-center justify-center">
+        <Link
+          href={productHref}
+          aria-label={`View ${product.name} from ${product.storeName}`}
+          className="relative block w-full aspect-square mb-3 rounded-xl bg-[#F8FAF7] border border-[#E2E8E3] overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
+        >
           <Image
             src={product.image}
             alt={product.name}
@@ -50,23 +60,33 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             sizes="(max-width: 640px) 160px, (max-width: 1024px) 220px, 260px"
             className="object-contain p-3 transition-transform duration-150 group-hover:scale-105"
           />
-        </div>
+        </Link>
 
         {/* Brand & Unit */}
         <div className="flex items-center justify-between text-[11px] text-[#647067] mb-1">
-          <span className="font-medium tracking-wide uppercase">{product.brand}</span>
-          <span className="px-1.5 py-0.5 rounded bg-[#F8FAF7] border border-[#E2E8E3] font-mono">
+          <span className="font-medium tracking-wide uppercase truncate max-w-[60%]">
+            {product.brand}
+          </span>
+          <span className="px-1.5 py-0.5 rounded bg-[#F8FAF7] border border-[#E2E8E3] font-mono shrink-0">
             {product.unit}
           </span>
         </div>
 
         {/* Product Name */}
         <h3 className="text-sm font-semibold text-[#17201A] line-clamp-2 min-h-[40px] leading-snug mb-1">
-          {product.name}
+          <Link
+            href={productHref}
+            className="hover:text-[#166534] transition-colors focus-visible:outline-none focus-visible:underline"
+          >
+            {product.name}
+          </Link>
         </h3>
 
         {/* Local Store Attribution */}
-        <p className="text-[11px] text-[#647067] flex items-center gap-1 mb-3">
+        <Link
+          href={`/stores/${product.storeId}`}
+          className="text-[11px] text-[#647067] hover:text-[#166534] flex items-center gap-1 mb-3 transition-colors"
+        >
           <svg
             className="w-3 h-3 text-[#166534] shrink-0"
             fill="none"
@@ -82,7 +102,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             />
           </svg>
           <span className="truncate">{product.storeName}</span>
-        </p>
+        </Link>
       </div>
 
       {/* Pricing & Add Action */}
@@ -98,7 +118,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </span>
             )}
           </div>
-          <span className="text-[10px] text-[#647067]">MRP incl. taxes</span>
+          <span className="text-[10px] text-[#647067]">
+            {product.mrp > product.price ? 'Below MRP' : `MRP ₹${product.mrp}`}
+          </span>
         </div>
 
         <Button

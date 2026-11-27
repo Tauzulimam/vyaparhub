@@ -1,8 +1,10 @@
 export interface Product {
   id: string;
+  masterProductId?: string;
   name: string;
   brand: string;
   category: string;
+  categorySlug?: string;
   unit: string;
   price: number;
   mrp: number;
@@ -21,6 +23,7 @@ export interface Store {
   id: string;
   name: string;
   category: string;
+  categorySlug?: string;
   distanceKm: number;
   rating: number;
   reviewCount: number;
@@ -28,6 +31,14 @@ export interface Store {
   isOpen: boolean;
   image: string;
   address: string;
+  area?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  deliveryRadiusKm?: number;
+  minOrderAmount?: number;
+  openingTime?: string | null;
+  closingTime?: string | null;
   phone?: string;
   timing?: string;
   description?: string;
