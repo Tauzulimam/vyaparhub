@@ -6,6 +6,7 @@ import type {
   CategoryOptionDto,
   MasterProduct,
   StoreProduct,
+  UpdateStoreDetailsInput,
   VendorOrder,
   VendorOrderStatus,
   VendorProfileDto,
@@ -29,6 +30,12 @@ export interface InventoryMutationResult {
   error?: string;
 }
 
+export interface StoreMutationResult {
+  success: boolean;
+  error?: string;
+  fieldErrors?: Record<string, string>;
+}
+
 export interface VendorContextValue {
   vendorProfile: VendorProfileDto;
   stores: VendorStoreInfo[];
@@ -43,7 +50,9 @@ export interface VendorContextValue {
   actions: {
     activateCreatedStore: (createdStore: VendorStoreInfo) => void;
     switchStore: (storeId: string) => Promise<void>;
-    updateStore: (patch: Partial<VendorStoreInfo>) => Promise<void>;
+    setStoreOpen: (isOpen: boolean) => Promise<StoreMutationResult>;
+    saveStoreDetails: (input: UpdateStoreDetailsInput) => Promise<StoreMutationResult>;
+    updateStore: (patch: Partial<VendorStoreInfo>) => Promise<StoreMutationResult>;
     addProduct: (
       masterProductId: string,
       sellingPrice: number,
@@ -168,6 +177,12 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
       );
     };
 
+    const replaceStoreInState = (updatedStore: VendorStoreInfo) => {
+      setStores((prev) =>
+        prev.map((s) => (s.id === updatedStore.id ? updatedStore : s))
+      );
+    };
+
     return {
       activateCreatedStore(createdStore: VendorStoreInfo) {
         setPendingCreatedStore(createdStore);
@@ -189,52 +204,98 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
         });
       },
 
-      async updateStore(patch: Partial<VendorStoreInfo>) {
-        if (!store) return;
-        const targetId = store.id;
-
-        setStores((prev) =>
-          prev.map((s) => (s.id === targetId ? { ...s, ...patch } : s))
-        );
-
-        startTransition(async () => {
-          if (patch.isOpen !== undefined) {
-            await updateStoreOperatingStatusAction(targetId, patch.isOpen);
-          }
-
-          const hasDetailUpdates =
-            patch.description !== undefined ||
-            patch.email !== undefined ||
-            patch.addressLine1 !== undefined ||
-            patch.addressLine2 !== undefined ||
-            patch.area !== undefined ||
-            patch.city !== undefined ||
-            patch.state !== undefined ||
-            patch.postalCode !== undefined ||
-            patch.openTime !== undefined ||
-            patch.closeTime !== undefined ||
-            patch.deliveryRadiusKm !== undefined ||
-            patch.minOrderAmount !== undefined;
-
-          if (hasDetailUpdates) {
-            await updateStoreDetailsAction(targetId, {
-              description: patch.description,
-              email: patch.email,
-              addressLine1: patch.addressLine1,
-              addressLine2: patch.addressLine2,
-              area: patch.area,
-              city: patch.city,
-              state: patch.state,
-              postalCode: patch.postalCode,
-              openingTime: patch.openTime,
-              closingTime: patch.closeTime,
-              deliveryRadiusKm: patch.deliveryRadiusKm,
-              minimumOrderAmount: patch.minOrderAmount,
-            });
-          }
-
+      async setStoreOpen(isOpen: boolean): Promise<StoreMutationResult> {
+        if (!store) {
+          return { success: false, error: 'Please register and select a store first.' };
+        }
+        const res = await updateStoreOperatingStatusAction(store.id, isOpen);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
+        replaceStoreInState(res.data.store);
+        startTransition(() => {
           router.refresh();
         });
+        return { success: true };
+      },
+
+      async saveStoreDetails(input: UpdateStoreDetailsInput): Promise<StoreMutationResult> {
+        if (!store) {
+          return { success: false, error: 'Please register and select a store first.' };
+        }
+        const res = await updateStoreDetailsAction(store.id, input);
+        if (!res.success) {
+          return {
+            success: false,
+            error: res.error,
+            fieldErrors: res.fieldErrors,
+          };
+        }
+        replaceStoreInState(res.data.store);
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
+      },
+
+      async updateStore(patch: Partial<VendorStoreInfo>): Promise<StoreMutationResult> {
+        if (!store) {
+          return { success: false, error: 'Please register and select a store first.' };
+        }
+        const targetId = store.id;
+
+        if (patch.isOpen !== undefined) {
+          const openRes = await updateStoreOperatingStatusAction(targetId, patch.isOpen);
+          if (!openRes.success) {
+            return { success: false, error: openRes.error };
+          }
+          replaceStoreInState(openRes.data.store);
+        }
+
+        const detailPayload: UpdateStoreDetailsInput = {};
+        if (patch.name !== undefined) detailPayload.name = patch.name;
+        if (patch.phone !== undefined) detailPayload.phone = patch.phone;
+        if (patch.categoryId !== undefined) detailPayload.categoryId = patch.categoryId;
+        if (patch.gstStatus !== undefined) detailPayload.gstStatus = patch.gstStatus;
+        if (patch.gstin !== undefined) detailPayload.gstin = patch.gstin;
+        if (patch.legalBusinessName !== undefined) {
+          detailPayload.legalBusinessName = patch.legalBusinessName;
+        }
+        if (patch.description !== undefined) detailPayload.description = patch.description;
+        if (patch.email !== undefined) detailPayload.email = patch.email;
+        if (patch.addressLine1 !== undefined) detailPayload.addressLine1 = patch.addressLine1;
+        if (patch.addressLine2 !== undefined) detailPayload.addressLine2 = patch.addressLine2;
+        if (patch.area !== undefined) detailPayload.area = patch.area;
+        if (patch.city !== undefined) detailPayload.city = patch.city;
+        if (patch.state !== undefined) detailPayload.state = patch.state;
+        if (patch.postalCode !== undefined) detailPayload.postalCode = patch.postalCode;
+        if (patch.latitude !== undefined) detailPayload.latitude = patch.latitude;
+        if (patch.longitude !== undefined) detailPayload.longitude = patch.longitude;
+        if (patch.openTime !== undefined) detailPayload.openingTime = patch.openTime;
+        if (patch.closeTime !== undefined) detailPayload.closingTime = patch.closeTime;
+        if (patch.deliveryRadiusKm !== undefined) {
+          detailPayload.deliveryRadiusKm = patch.deliveryRadiusKm;
+        }
+        if (patch.minOrderAmount !== undefined) {
+          detailPayload.minimumOrderAmount = patch.minOrderAmount;
+        }
+
+        if (Object.keys(detailPayload).length > 0) {
+          const detailRes = await updateStoreDetailsAction(targetId, detailPayload);
+          if (!detailRes.success) {
+            return {
+              success: false,
+              error: detailRes.error,
+              fieldErrors: detailRes.fieldErrors,
+            };
+          }
+          replaceStoreInState(detailRes.data.store);
+        }
+
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
 
       async addProduct(

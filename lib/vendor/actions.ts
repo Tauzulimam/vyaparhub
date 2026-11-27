@@ -14,6 +14,7 @@ import {
   mapStoreToVendorStoreInfo,
   resolveAuthenticatedActiveStore,
   STORE_PRODUCT_SELECT,
+  STORE_SELECT,
   toNumericValue,
 } from '@/lib/vendor/server';
 import {
@@ -22,6 +23,10 @@ import {
   validateSellingPrice,
   validateWholeQuantity,
 } from '@/lib/vendor/inventoryRules';
+import {
+  executeStoreDetailsUpdate,
+  executeStoreOperatingStatusUpdate,
+} from '@/lib/vendor/storePersistence';
 import type {
   CreateStoreInput,
   CreateStoreProductInput,
@@ -178,44 +183,7 @@ export async function createStoreAction(
             },
           },
         },
-        select: {
-          id: true,
-          vendorProfileId: true,
-          categoryId: true,
-          name: true,
-          description: true,
-          phone: true,
-          email: true,
-          addressLine1: true,
-          addressLine2: true,
-          area: true,
-          city: true,
-          state: true,
-          postalCode: true,
-          openingTime: true,
-          closingTime: true,
-          deliveryRadiusKm: true,
-          minimumOrderAmount: true,
-          isOpen: true,
-          verificationStatus: true,
-          marketplaceStatus: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-          businessDetails: {
-            select: {
-              id: true,
-              gstStatus: true,
-              gstin: true,
-              legalBusinessName: true,
-              gstVerified: true,
-            },
-          },
-        },
+        select: STORE_SELECT,
       });
 
       return store;
@@ -238,6 +206,18 @@ export async function createStoreAction(
       data: { storeId: createdStoreDto.id, store: createdStoreDto },
     };
   } catch (error: unknown) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === 'P2002'
+    ) {
+      return {
+        success: false,
+        error: 'This GSTIN is already registered to another store.',
+        fieldErrors: { gstin: 'This GSTIN is already registered to another store.' },
+      };
+    }
     console.error('Failed to create store:', error);
     return {
       success: false,
@@ -247,148 +227,81 @@ export async function createStoreAction(
 }
 
 /**
- * Updates the vendor-controlled operating status (isOpen: true / false).
- * Strict ownership check: verifies store belongs to the authenticated vendor.
+ * Updates the vendor-controlled operating status (isOpen: true / false) for the
+ * authenticated vendor's currently active owned Store.
+ * Fails closed if the store is suspended, rejected, unowned, or not the active store.
+ * Never modifies admin-controlled marketplaceStatus or verificationStatus.
  */
 export async function updateStoreOperatingStatusAction(
   storeId: string,
   isOpen: boolean
-): Promise<ActionResult<{ isOpen: boolean }>> {
+): Promise<ActionResult<{ isOpen: boolean; store: VendorStoreInfo }>> {
   try {
-    const { vendorProfile } = await getAuthenticatedVendorProfile();
+    const { user, vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
     const { prisma } = await import('@/lib/prisma');
 
-    // Strict ownership verification
-    const existing = await prisma.store.findFirst({
-      where: {
-        id: storeId,
-        vendorProfileId: vendorProfile.id,
-      },
-      select: { id: true },
+    const result = await executeStoreOperatingStatusUpdate(prisma, {
+      vendorProfileId: vendorProfile.id,
+      ownerName: vendorProfile.ownerName,
+      activeStoreId: activeStore?.id ?? null,
+      requestedStoreId: storeId,
+      nextIsOpen: isOpen,
+      accountStatus: user.accountStatus,
     });
 
-    if (!existing) {
-      return { success: false, error: 'Store not found or you do not have permission to modify it.' };
+    if (!result.success) {
+      return result;
     }
 
-    await prisma.store.update({
-      where: { id: storeId },
-      data: { isOpen: Boolean(isOpen) },
-    });
+    revalidatePath('/vendor', 'layout');
 
-    revalidatePath('/vendor');
-    revalidatePath('/vendor/store');
-
-    return {
-      success: true,
-      data: { isOpen: Boolean(isOpen) },
-    };
+    return result;
   } catch (error: unknown) {
     console.error('Failed to update store operating status:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update store operating status.',
+      error: 'Failed to update store operating status. Please try again.',
     };
   }
 }
 
 /**
- * Updates editable operational details for an authenticated vendor's store.
- * Verified business & tax identity details remain untouched.
+ * Updates store details and (while unverified) business/GST details for the
+ * authenticated vendor's currently active owned Store.
+ * Enforces verification-sensitive locking and rejects invalid settings server-side.
+ * Never modifies admin-controlled verificationStatus, marketplaceStatus, gstVerified, or gstVerifiedAt.
  */
 export async function updateStoreDetailsAction(
   storeId: string,
   input: UpdateStoreDetailsInput
-): Promise<ActionResult<void>> {
+): Promise<ActionResult<{ store: VendorStoreInfo }>> {
   try {
-    const { vendorProfile } = await getAuthenticatedVendorProfile();
+    const { user, vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
     const { prisma } = await import('@/lib/prisma');
 
-    // Strict ownership verification
-    const existing = await prisma.store.findFirst({
-      where: {
-        id: storeId,
-        vendorProfileId: vendorProfile.id,
-      },
-      select: { id: true },
+    const result = await executeStoreDetailsUpdate(prisma, {
+      vendorProfileId: vendorProfile.id,
+      ownerName: vendorProfile.ownerName,
+      activeStoreId: activeStore?.id ?? null,
+      requestedStoreId: storeId,
+      accountStatus: user.accountStatus,
+      input,
     });
 
-    if (!existing) {
-      return { success: false, error: 'Store not found or unauthorized.' };
+    if (!result.success) {
+      return result;
     }
 
-    const dataToUpdate: Record<string, unknown> = {};
+    revalidatePath('/vendor', 'layout');
 
-    if (input.description !== undefined) {
-      dataToUpdate.description = input.description.trim() || null;
-    }
-
-    if (input.email !== undefined) {
-      dataToUpdate.email = input.email.trim() || null;
-    }
-
-    if (input.addressLine1 !== undefined && input.addressLine1.trim().length >= 3) {
-      dataToUpdate.addressLine1 = input.addressLine1.trim();
-    }
-
-    if (input.addressLine2 !== undefined) {
-      dataToUpdate.addressLine2 = input.addressLine2.trim() || null;
-    }
-
-    if (input.area !== undefined && input.area.trim().length >= 2) {
-      dataToUpdate.area = input.area.trim();
-    }
-
-    if (input.city !== undefined && input.city.trim().length >= 2) {
-      dataToUpdate.city = input.city.trim();
-    }
-
-    if (input.state !== undefined && input.state.trim().length >= 2) {
-      dataToUpdate.state = input.state.trim();
-    }
-
-    if (input.postalCode !== undefined && PINCODE_REGEX.test(input.postalCode.trim())) {
-      dataToUpdate.postalCode = input.postalCode.trim();
-    }
-
-    if (input.openingTime !== undefined && TIME_REGEX.test(input.openingTime)) {
-      dataToUpdate.openingTime = input.openingTime;
-    }
-
-    if (input.closingTime !== undefined && TIME_REGEX.test(input.closingTime)) {
-      dataToUpdate.closingTime = input.closingTime;
-    }
-
-    if (input.deliveryRadiusKm !== undefined) {
-      const radius = Number(input.deliveryRadiusKm);
-      if (radius >= 1 && radius <= 10) {
-        dataToUpdate.deliveryRadiusKm = radius;
-      }
-    }
-
-    if (input.minimumOrderAmount !== undefined) {
-      const minOrder = Number(input.minimumOrderAmount);
-      if (minOrder >= 0) {
-        dataToUpdate.minimumOrderAmount = minOrder;
-      }
-    }
-
-    if (Object.keys(dataToUpdate).length > 0) {
-      await prisma.store.update({
-        where: { id: storeId },
-        data: dataToUpdate,
-      });
-    }
-
-    revalidatePath('/vendor');
-    revalidatePath('/vendor/store');
-
-    return { success: true, data: undefined };
+    return result;
   } catch (error: unknown) {
     console.error('Failed to update store details:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to update store details.',
+      error: 'Failed to update store details. Please try again.',
     };
   }
 }

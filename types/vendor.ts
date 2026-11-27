@@ -50,8 +50,10 @@ export interface VendorStoreInfo {
   gstStatus: GstStatus;
   /** Only present when gstStatus is REGISTERED. */
   gstin?: string;
+  legalBusinessName?: string;
   /** Verified GSTINs are read-only; changes need support re-verification (future). */
   gstVerified: boolean;
+  gstVerifiedAt?: string | null;
   /** Real DB fields from Store and Category */
   verificationStatus?: string;
   marketplaceStatus?: string;
@@ -61,6 +63,8 @@ export interface VendorStoreInfo {
   city?: string;
   state?: string;
   postalCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   categoryId?: string;
 }
 
@@ -101,6 +105,15 @@ export interface CreateStoreInput {
 }
 
 export interface UpdateStoreDetailsInput {
+  /** Pre-verification store identity fields (locked once store.verificationStatus === 'VERIFIED') */
+  name?: string;
+  phone?: string;
+  categoryId?: string;
+  /** Pre-verification StoreBusinessDetails fields (locked once gstVerified or store is VERIFIED) */
+  gstStatus?: GstStatus;
+  gstin?: string | null;
+  legalBusinessName?: string | null;
+  /** Editable operational, location, hours, and delivery fields */
   description?: string;
   email?: string;
   addressLine1?: string;
@@ -109,6 +122,8 @@ export interface UpdateStoreDetailsInput {
   city?: string;
   state?: string;
   postalCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   openingTime?: string;
   closingTime?: string;
   deliveryRadiusKm?: number;

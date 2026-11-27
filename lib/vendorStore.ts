@@ -14,6 +14,7 @@ import type {
   GstStatus,
   StockState,
   StoreProduct,
+  UpdateStoreDetailsInput,
   VendorOrder,
   VendorOrderStatus,
   VendorStoreInfo,
@@ -104,10 +105,50 @@ export interface NewStoreInput {
 }
 
 export const vendorActions = {
-  updateStore(patch: Partial<VendorStoreInfo>) {
+  async setStoreOpen(isOpen: boolean): Promise<StoreMutationResult> {
+    setState({
+      stores: state.stores.map((s) =>
+        s.id === state.activeStoreId ? { ...s, isOpen, acceptingOrders: isOpen } : s
+      ),
+    });
+    return { success: true };
+  },
+
+  async saveStoreDetails(input: UpdateStoreDetailsInput): Promise<StoreMutationResult> {
+    setState({
+      stores: state.stores.map((s) =>
+        s.id === state.activeStoreId
+          ? {
+              ...s,
+              ...(input.name !== undefined ? { name: input.name } : {}),
+              ...(input.phone !== undefined ? { phone: input.phone } : {}),
+              ...(input.description !== undefined ? { description: input.description } : {}),
+              ...(input.email !== undefined ? { email: input.email } : {}),
+              ...(input.openingTime !== undefined ? { openTime: input.openingTime } : {}),
+              ...(input.closingTime !== undefined ? { closeTime: input.closingTime } : {}),
+              ...(input.deliveryRadiusKm !== undefined
+                ? { deliveryRadiusKm: input.deliveryRadiusKm }
+                : {}),
+              ...(input.minimumOrderAmount !== undefined
+                ? { minOrderAmount: input.minimumOrderAmount }
+                : {}),
+              ...(input.gstStatus !== undefined ? { gstStatus: input.gstStatus } : {}),
+              ...(input.gstin !== undefined ? { gstin: input.gstin ?? undefined } : {}),
+              ...(input.legalBusinessName !== undefined
+                ? { legalBusinessName: input.legalBusinessName ?? '' }
+                : {}),
+            }
+          : s
+      ),
+    });
+    return { success: true };
+  },
+
+  async updateStore(patch: Partial<VendorStoreInfo>): Promise<StoreMutationResult> {
     setState({
       stores: state.stores.map((s) => (s.id === state.activeStoreId ? { ...s, ...patch } : s)),
     });
+    return { success: true };
   },
 
   switchStore(storeId: string) {
@@ -233,6 +274,7 @@ export const vendorActions = {
 
 import {
   type InventoryMutationResult,
+  type StoreMutationResult,
   useVendorContext,
 } from '@/components/vendor/VendorProvider';
 
@@ -257,6 +299,8 @@ export function useVendorState() {
         ...vendorActions,
         activateCreatedStore: ctx.actions.activateCreatedStore,
         switchStore: ctx.actions.switchStore,
+        setStoreOpen: ctx.actions.setStoreOpen,
+        saveStoreDetails: ctx.actions.saveStoreDetails,
         updateStore: ctx.actions.updateStore,
         addProduct: ctx.actions.addProduct,
         updateProduct: ctx.actions.updateProduct,

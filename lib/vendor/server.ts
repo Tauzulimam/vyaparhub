@@ -199,53 +199,111 @@ export async function getAuthenticatedVendorProfile() {
   };
 }
 
+export const STORE_SCALAR_SELECT = {
+  id: true,
+  vendorProfileId: true,
+  categoryId: true,
+  name: true,
+  description: true,
+  phone: true,
+  email: true,
+  addressLine1: true,
+  addressLine2: true,
+  area: true,
+  city: true,
+  state: true,
+  postalCode: true,
+  latitude: true,
+  longitude: true,
+  openingTime: true,
+  closingTime: true,
+  deliveryRadiusKm: true,
+  minimumOrderAmount: true,
+  isOpen: true,
+  verificationStatus: true,
+  marketplaceStatus: true,
+} as const;
+
+export const STORE_CATEGORY_SELECT = {
+  id: true,
+  name: true,
+  slug: true,
+} as const;
+
+export const STORE_BUSINESS_DETAILS_SELECT = {
+  id: true,
+  gstStatus: true,
+  gstin: true,
+  legalBusinessName: true,
+  gstVerified: true,
+  gstVerifiedAt: true,
+} as const;
+
+export const STORE_SELECT = {
+  ...STORE_SCALAR_SELECT,
+  category: {
+    select: STORE_CATEGORY_SELECT,
+  },
+  businessDetails: {
+    select: STORE_BUSINESS_DETAILS_SELECT,
+  },
+} as const;
+
+export interface StoreRecordShape {
+  id: string;
+  vendorProfileId: string;
+  categoryId: string;
+  name: string;
+  description: string | null;
+  phone: string;
+  email: string | null;
+  addressLine1: string;
+  addressLine2: string | null;
+  area: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  latitude?: { toNumber?: () => number } | number | string | null;
+  longitude?: { toNumber?: () => number } | number | string | null;
+  openingTime: string | null;
+  closingTime: string | null;
+  deliveryRadiusKm: { toNumber?: () => number } | number | string;
+  minimumOrderAmount: { toNumber?: () => number } | number | string;
+  isOpen: boolean;
+  verificationStatus: VerificationStatus;
+  marketplaceStatus: MarketplaceStatus;
+  category: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  businessDetails: {
+    id: string;
+    gstStatus: GstStatus;
+    gstin: string | null;
+    legalBusinessName: string | null;
+    gstVerified: boolean;
+    gstVerifiedAt?: Date | null;
+  } | null;
+}
+
 /**
  * Maps a Prisma Store + Category + BusinessDetails record into the application VendorStoreInfo format.
  */
 export function mapStoreToVendorStoreInfo(
-  store: {
-    id: string;
-    vendorProfileId: string;
-    categoryId: string;
-    name: string;
-    description: string | null;
-    phone: string;
-    email: string | null;
-    addressLine1: string;
-    addressLine2: string | null;
-    area: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    openingTime: string | null;
-    closingTime: string | null;
-    deliveryRadiusKm: { toNumber?: () => number } | number;
-    minimumOrderAmount: { toNumber?: () => number } | number;
-    isOpen: boolean;
-    verificationStatus: VerificationStatus;
-    marketplaceStatus: MarketplaceStatus;
-    category: {
-      id: string;
-      name: string;
-      slug: string;
-    };
-    businessDetails: {
-      id: string;
-      gstStatus: GstStatus;
-      gstin: string | null;
-      legalBusinessName: string | null;
-      gstVerified: boolean;
-    } | null;
-  },
+  store: StoreRecordShape,
   ownerName: string
 ): VendorStoreInfo {
-  const radiusNum = typeof store.deliveryRadiusKm === 'object' && store.deliveryRadiusKm && 'toNumber' in store.deliveryRadiusKm
-    ? (store.deliveryRadiusKm as { toNumber: () => number }).toNumber()
-    : Number(store.deliveryRadiusKm);
-
-  const minOrderNum = typeof store.minimumOrderAmount === 'object' && store.minimumOrderAmount && 'toNumber' in store.minimumOrderAmount
-    ? (store.minimumOrderAmount as { toNumber: () => number }).toNumber()
-    : Number(store.minimumOrderAmount);
+  const radiusNum = Number(toNumericValue(store.deliveryRadiusKm).toFixed(2));
+  const minOrderNum = Number(toNumericValue(store.minimumOrderAmount).toFixed(2));
+  const latNum =
+    store.latitude !== null && store.latitude !== undefined
+      ? Number(toNumericValue(store.latitude).toFixed(6))
+      : null;
+  const lngNum =
+    store.longitude !== null && store.longitude !== undefined
+      ? Number(toNumericValue(store.longitude).toFixed(6))
+      : null;
 
   const formattedAddress = [
     store.addressLine1,
@@ -273,12 +331,17 @@ export function mapStoreToVendorStoreInfo(
     closeTime: store.closingTime ?? '21:00',
     deliveryRadiusKm: radiusNum,
     minOrderAmount: minOrderNum,
-    acceptingOrders: store.isOpen && store.marketplaceStatus === MarketplaceStatus.ACTIVE,
+    acceptingOrders:
+      store.isOpen &&
+      store.marketplaceStatus === MarketplaceStatus.ACTIVE &&
+      store.verificationStatus !== VerificationStatus.REJECTED,
     isOpen: store.isOpen,
     codEnabled: true,
     gstStatus,
     gstin: store.businessDetails?.gstin ?? undefined,
+    legalBusinessName: store.businessDetails?.legalBusinessName ?? '',
     gstVerified: store.businessDetails?.gstVerified ?? false,
+    gstVerifiedAt: store.businessDetails?.gstVerifiedAt?.toISOString() ?? null,
     verificationStatus: store.verificationStatus,
     marketplaceStatus: store.marketplaceStatus,
     addressLine1: store.addressLine1,
@@ -287,6 +350,8 @@ export function mapStoreToVendorStoreInfo(
     city: store.city,
     state: store.state,
     postalCode: store.postalCode,
+    latitude: latNum,
+    longitude: lngNum,
     categoryId: store.categoryId,
   };
 }
@@ -302,44 +367,7 @@ export async function getAuthenticatedVendorStores(): Promise<VendorStoreInfo[]>
   const stores = await prisma.store.findMany({
     where: { vendorProfileId: vendorProfile.id },
     orderBy: { createdAt: 'asc' },
-    select: {
-      id: true,
-      vendorProfileId: true,
-      categoryId: true,
-      name: true,
-      description: true,
-      phone: true,
-      email: true,
-      addressLine1: true,
-      addressLine2: true,
-      area: true,
-      city: true,
-      state: true,
-      postalCode: true,
-      openingTime: true,
-      closingTime: true,
-      deliveryRadiusKm: true,
-      minimumOrderAmount: true,
-      isOpen: true,
-      verificationStatus: true,
-      marketplaceStatus: true,
-      category: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-        },
-      },
-      businessDetails: {
-        select: {
-          id: true,
-          gstStatus: true,
-          gstin: true,
-          legalBusinessName: true,
-          gstVerified: true,
-        },
-      },
-    },
+    select: STORE_SELECT,
   });
 
   return stores.map((s) => mapStoreToVendorStoreInfo(s, vendorProfile.ownerName));
@@ -358,44 +386,33 @@ export async function getAuthenticatedVendorStore(storeId: string): Promise<Vend
       id: storeId,
       vendorProfileId: vendorProfile.id,
     },
-    select: {
-      id: true,
-      vendorProfileId: true,
-      categoryId: true,
-      name: true,
-      description: true,
-      phone: true,
-      email: true,
-      addressLine1: true,
-      addressLine2: true,
-      area: true,
-      city: true,
-      state: true,
-      postalCode: true,
-      openingTime: true,
-      closingTime: true,
-      deliveryRadiusKm: true,
-      minimumOrderAmount: true,
-      isOpen: true,
-      verificationStatus: true,
-      marketplaceStatus: true,
-      category: {
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-        },
-      },
-      businessDetails: {
-        select: {
-          id: true,
-          gstStatus: true,
-          gstin: true,
-          legalBusinessName: true,
-          gstVerified: true,
-        },
-      },
+    select: STORE_SELECT,
+  });
+
+  if (!store) {
+    return null;
+  }
+
+  return mapStoreToVendorStoreInfo(store, vendorProfile.ownerName);
+}
+
+/**
+ * Retrieves the currently active owned Store for the authenticated vendor from PostgreSQL.
+ * Returns null if the vendor owns zero stores.
+ */
+export async function getAuthenticatedActiveVendorStore(): Promise<VendorStoreInfo | null> {
+  const { vendorProfile, activeStore } = await resolveAuthenticatedActiveStore();
+  if (!activeStore) {
+    return null;
+  }
+
+  const { prisma } = await import('@/lib/prisma');
+  const store = await prisma.store.findFirst({
+    where: {
+      id: activeStore.id,
+      vendorProfileId: vendorProfile.id,
     },
+    select: STORE_SELECT,
   });
 
   if (!store) {
@@ -561,44 +578,7 @@ export async function getAuthenticatedVendorData() {
       prisma.store.findMany({
         where: { vendorProfileId: vendorProfile.id },
         orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          vendorProfileId: true,
-          categoryId: true,
-          name: true,
-          description: true,
-          phone: true,
-          email: true,
-          addressLine1: true,
-          addressLine2: true,
-          area: true,
-          city: true,
-          state: true,
-          postalCode: true,
-          openingTime: true,
-          closingTime: true,
-          deliveryRadiusKm: true,
-          minimumOrderAmount: true,
-          isOpen: true,
-          verificationStatus: true,
-          marketplaceStatus: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-            },
-          },
-          businessDetails: {
-            select: {
-              id: true,
-              gstStatus: true,
-              gstin: true,
-              legalBusinessName: true,
-              gstVerified: true,
-            },
-          },
-        },
+        select: STORE_SELECT,
       }),
       prisma.category.findMany({
         where: { isActive: true },
