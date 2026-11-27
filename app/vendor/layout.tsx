@@ -21,6 +21,7 @@ async function AuthenticatedVendorLayoutContent({
       categories={vendorData.categories}
       masterCatalog={vendorData.masterCatalog}
       initialStoreProducts={vendorData.storeProducts}
+      initialOrders={vendorData.orders}
     >
       <VendorShell>{children}</VendorShell>
     </VendorProvider>

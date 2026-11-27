@@ -267,11 +267,51 @@ export interface CustomerOrderSummaryDto {
   itemsPreview: { name: string; quantity: number }[];
 }
 
+export interface CustomerOrderStatusHistoryDto {
+  id: string;
+  status: CustomerOrderStatusDto;
+  changedByType: 'CUSTOMER' | 'VENDOR' | 'ADMIN' | 'SYSTEM' | 'DELIVERY';
+  note: string | null;
+  createdAtIso: string;
+  createdAtLabel: string;
+}
+
 export interface CustomerOrderDetailDto extends CustomerOrderSummaryDto {
   storePhone: string | null;
   items: CustomerOrderItemDto[];
   deliveryAddress: CustomerOrderAddressSnapshotDto | null;
+  statusHistory: CustomerOrderStatusHistoryDto[];
 }
+
+export type PlaceOrderErrorCode =
+  | 'UNAUTHENTICATED'
+  | 'FORBIDDEN_ROLE'
+  | 'ACCOUNT_INACTIVE'
+  | 'EMPTY_CART'
+  | 'STALE_OR_INVALID_CART'
+  | 'PRICE_CHANGED'
+  | 'INSUFFICIENT_STOCK'
+  | 'STORE_INELIGIBLE'
+  | 'ADDRESS_REQUIRED'
+  | 'ADDRESS_UNAUTHORIZED'
+  | 'INVALID_PAYMENT_METHOD'
+  | 'DUPLICATE_SUBMISSION'
+  | 'ORDER_CREATION_FAILED';
+
+export type PlaceOrderActionResult =
+  | {
+      success: true;
+      orderId: string;
+      orderNumber: string;
+      totalAmount: number;
+    }
+  | {
+      success: false;
+      code: PlaceOrderErrorCode;
+      error: string;
+      issues?: string[];
+      cart?: CustomerCartDto;
+    };
 
 export function createEmptyCustomerCartDto(): CustomerCartDto {
   return {

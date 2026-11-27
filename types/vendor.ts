@@ -139,10 +139,12 @@ export interface CreateStoreProductInput {
 }
 
 export type VendorOrderStatus =
-  | 'PENDING'
+  | 'PLACED'
+  | 'PENDING' // legacy Phase 2 alias kept only for untouched mock fixtures
   | 'ACCEPTED'
   | 'PREPARING'
-  | 'READY' // "Ready for Pickup" — last vendor-controlled status
+  | 'READY_FOR_PICKUP'
+  | 'READY' // legacy Phase 2 alias kept only for untouched mock fixtures
   // Below: delivery-partner workflow (future). Vendors can only view these.
   | 'PICKED_UP'
   | 'OUT_FOR_DELIVERY'
@@ -156,6 +158,7 @@ export interface VendorOrder {
   customerName: string;
   customerPhone: string;
   placedAt: string;
+  placedAtIso?: string;
   items: OrderItem[];
   subtotal: number;
   deliveryFee: number;
@@ -163,8 +166,8 @@ export interface VendorOrder {
   status: VendorOrderStatus;
   deliveryAddress: Address;
   note?: string;
-  paymentMethod: 'COD' | 'MOCK_UPI' | 'MOCK_CARD';
-  paymentStatus: 'PENDING' | 'PAID';
+  paymentMethod: 'COD' | 'UPI' | 'CARD' | 'MOCK_UPI' | 'MOCK_CARD';
+  paymentStatus: 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED';
 }
 
 export type SubscriptionStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'TRIAL';

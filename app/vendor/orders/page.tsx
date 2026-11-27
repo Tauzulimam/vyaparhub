@@ -36,8 +36,10 @@ export default function VendorOrdersPage() {
   }
 
   const groups: Record<Tab, typeof orders> = {
-    incoming: orders.filter((o) => o.status === 'PENDING'),
-    current: orders.filter((o) => ['ACCEPTED', 'PREPARING', 'READY'].includes(o.status)),
+    incoming: orders.filter((o) => o.status === 'PLACED' || o.status === 'PENDING'),
+    current: orders.filter((o) =>
+      ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'READY'].includes(o.status)
+    ),
     handoff: orders.filter((o) => o.status === 'PICKED_UP' || o.status === 'OUT_FOR_DELIVERY'),
     past: orders.filter((o) => o.status === 'DELIVERED' || o.status === 'CANCELLED'),
   };

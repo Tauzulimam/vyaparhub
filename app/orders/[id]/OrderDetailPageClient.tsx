@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { MobileNav } from '@/components/layout/MobileNav';
@@ -13,11 +14,22 @@ import type {
 } from '@/lib/cart/types';
 import { useCustomerCart } from '@/lib/cart/useCustomerCart';
 
+const STATUS_LABELS: Record<CustomerOrderStatusDto, string> = {
+  PLACED: 'Order Placed',
+  ACCEPTED: 'Accepted',
+  PREPARING: 'Preparing',
+  READY_FOR_PICKUP: 'Ready for Pickup',
+  PICKED_UP: 'Picked Up',
+  OUT_FOR_DELIVERY: 'Out for Delivery',
+  DELIVERED: 'Delivered',
+  CANCELLED: 'Cancelled',
+};
+
 const ORDER_STEPS: { status: CustomerOrderStatusDto; label: string; icon: string }[] = [
   { status: 'PLACED', label: 'Order Placed', icon: '📋' },
   { status: 'ACCEPTED', label: 'Accepted', icon: '✅' },
   { status: 'PREPARING', label: 'Preparing', icon: '👨‍🍳' },
-  { status: 'READY_FOR_PICKUP', label: 'Ready', icon: '📦' },
+  { status: 'READY_FOR_PICKUP', label: 'Ready for Pickup', icon: '📦' },
   { status: 'OUT_FOR_DELIVERY', label: 'Out for Delivery', icon: '🛵' },
   { status: 'DELIVERED', label: 'Delivered', icon: '🏠' },
 ];
@@ -44,10 +56,7 @@ function OrderStatusProgress({ status }: { status: CustomerOrderStatusDto }) {
   }
 
   const currentIndex = getStepIndex(status);
-  const currentLabel =
-    status === 'PICKED_UP'
-      ? 'Picked Up'
-      : ORDER_STEPS[currentIndex]?.label || status;
+  const currentLabel = STATUS_LABELS[status] || status;
 
   return (
     <div className="bg-white border border-[#E2E8E3] rounded-2xl p-5 space-y-5">
@@ -94,7 +103,7 @@ function OrderStatusProgress({ status }: { status: CustomerOrderStatusDto }) {
                   />
                 </div>
                 <p
-                  className={`text-[10px] font-semibold mt-1.5 text-center max-w-[64px] ${
+                  className={`text-[10px] font-semibold mt-1.5 text-center max-w-[72px] ${
                     active ? 'text-[#166534]' : done ? 'text-[#647067]' : 'text-[#647067]/40'
                   }`}
                 >
@@ -153,13 +162,39 @@ export default function OrderDetailPageClient({
   order,
   initialLocationLabel,
 }: OrderDetailPageClientProps) {
+  const searchParams = useSearchParams();
+  const justPlaced = searchParams.get('placed') === '1';
+  const [dismissedBanner, setDismissedBanner] = useState(false);
+
   const { cartCount, deliveryLocationLabel } = useCustomerCart({
     initialLocationLabel,
   });
 
+  const showPlacedBanner = justPlaced && !dismissedBanner;
+
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
       <Navbar cartItemCount={cartCount} currentLocation={deliveryLocationLabel} />
+
+      {showPlacedBanner && (
+        <aside
+          aria-live="polite"
+          className="bg-[#166534] text-white px-4 py-3 text-center text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <span>✅</span>
+          <span>
+            Order {order.orderNumber} placed successfully! {order.storeName} has received your order.
+          </span>
+          <button
+            type="button"
+            onClick={() => setDismissedBanner(true)}
+            aria-label="Dismiss order placed banner"
+            className="ml-2 text-white/80 hover:text-white text-xs font-bold"
+          >
+            ✕
+          </button>
+        </aside>
+      )}
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 pb-28 md:pb-16 space-y-5">
         {/* Breadcrumb */}
@@ -185,6 +220,36 @@ export default function OrderDetailPageClient({
 
         {/* Status Progress */}
         <OrderStatusProgress status={order.status} />
+
+        {/* Status History / Timeline */}
+        {order.statusHistory.length > 0 && (
+          <div className="bg-white border border-[#E2E8E3] rounded-2xl p-5 space-y-3">
+            <h2 className="text-sm font-bold text-[#17201A]">Order Timeline</h2>
+            <ol className="space-y-2.5">
+              {order.statusHistory.map((entry, idx) => {
+                const isLatest = idx === order.statusHistory.length - 1;
+                return (
+                  <li key={entry.id} className="flex items-start gap-3 text-xs">
+                    <span
+                      className={`mt-0.5 w-2.5 h-2.5 rounded-full shrink-0 ${
+                        isLatest ? 'bg-[#166534]' : 'bg-[#166534]/40'
+                      }`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-bold text-[#17201A]">
+                          {STATUS_LABELS[entry.status] || entry.status}
+                        </span>
+                        <span className="text-[11px] text-[#647067]">{entry.createdAtLabel}</span>
+                      </div>
+                      {entry.note && <p className="text-[#647067] mt-0.5">{entry.note}</p>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* Ordered Items */}

@@ -76,7 +76,7 @@ export default function VendorDashboardPage() {
   }
 
   const activeOrders = orders.filter((o) => !['DELIVERED', 'CANCELLED'].includes(o.status));
-  const pending = orders.filter((o) => o.status === 'PENDING');
+  const pending = orders.filter((o) => o.status === 'PLACED' || o.status === 'PENDING');
   const delivered = orders.filter((o) => o.status === 'DELIVERED');
   const revenue = orders.filter((o) => o.status !== 'CANCELLED').reduce((s, o) => s + o.total, 0);
   const lowStock = products.filter((p) => getStockState(p.quantity) !== 'IN_STOCK');
@@ -107,9 +107,13 @@ export default function VendorDashboardPage() {
               </Link>
             }
           />
-          {orders.slice(0, 4).map((o) => (
-            <OrderCard key={o.id} order={o} compact />
-          ))}
+          {orders.length === 0 ? (
+            <Card className="p-6 text-center text-sm text-[#647067]">
+              No customer orders received for {store.name} yet.
+            </Card>
+          ) : (
+            orders.slice(0, 4).map((o) => <OrderCard key={o.id} order={o} compact />)
+          )}
         </div>
 
         <div className="space-y-6">

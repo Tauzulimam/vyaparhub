@@ -32,8 +32,10 @@ import type {
   CreateStoreProductInput,
   StoreProduct,
   UpdateStoreDetailsInput,
+  VendorOrder,
   VendorStoreInfo,
 } from '@/types/vendor';
+import { executeVendorOrderStatusTransition } from '@/lib/orders/persistence';
 
 const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
 const TIME_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -852,6 +854,55 @@ export async function removeStoreProductAction(
     return {
       success: false,
       error: 'Failed to remove product from store inventory. Please try again.',
+    };
+  }
+}
+
+/**
+ * Transitions an order belonging strictly to the authenticated vendor's currently active
+ * owned Store to its next valid fulfillment status:
+ * PLACED -> ACCEPTED -> PREPARING -> READY_FOR_PICKUP
+ */
+export async function transitionVendorOrderStatusAction(
+  orderId: string,
+  nextStatus: string
+): Promise<ActionResult<{ order: VendorOrder }>> {
+  try {
+    const { user, vendorProfile } = await getAuthenticatedVendorProfile();
+    const { activeStore } = await resolveAuthenticatedActiveStore(vendorProfile);
+    const { prisma } = await import('@/lib/prisma');
+
+    const result = await executeVendorOrderStatusTransition(prisma, {
+      vendorUserId: user.id,
+      vendorProfileId: vendorProfile.id,
+      activeStoreId: activeStore?.id ?? null,
+      orderId,
+      requestedNextStatus: nextStatus,
+    });
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error,
+      };
+    }
+
+    revalidatePath('/vendor', 'layout');
+    revalidatePath('/vendor/orders');
+    revalidatePath('/orders');
+    revalidatePath(`/orders/${result.order.id}`);
+
+    return {
+      success: true,
+      data: {
+        order: result.order,
+      },
+    };
+  } catch (error: unknown) {
+    console.error('Failed to transition vendor order status:', error);
+    return {
+      success: false,
+      error: 'Failed to update order status. Please try again.',
     };
   }
 }

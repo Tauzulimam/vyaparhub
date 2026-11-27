@@ -17,7 +17,7 @@ function createClient() {
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 10_000,
   });
-  return new PrismaClient({ adapter });
+  return new PrismaClient({ adapter, errorFormat: "minimal" });
 }
 
 export const prisma = globalForPrisma.prisma ?? createClient();

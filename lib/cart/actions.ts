@@ -27,8 +27,10 @@ import {
   createEmptyCustomerCartDto,
   type CustomerCartDto,
   DEFAULT_DELIVERY_LOCATION_LABEL,
+  type PlaceOrderActionResult,
   type ProfileUpdateActionResult,
 } from '@/lib/cart/types';
+import { executePlaceCustomerOrder } from '@/lib/orders/persistence';
 
 function mapSessionFailureToCartError(
   status: Exclude<CartAuthStatus, 'authenticated_customer'>
@@ -357,6 +359,74 @@ export async function validateCustomerCheckoutAction(input: {
       valid: false,
       code: 'STALE_OR_INVALID_CART',
       error: 'Could not validate checkout readiness right now. Please refresh and try again.',
+    };
+  }
+}
+
+/**
+ * Places a real Cash on Delivery (COD) order for the authenticated CUSTOMER.
+ * Never trusts client customer ID, store ID, product prices, names, stock, or totals.
+ */
+export async function placeCustomerOrderAction(input: {
+  addressId: string;
+  expectedSubtotal?: number;
+  customerNote?: string;
+}): Promise<PlaceOrderActionResult> {
+  try {
+    const session = await resolveAuthenticatedCustomer();
+    if (session.status === 'unauthenticated') {
+      return {
+        success: false,
+        code: 'UNAUTHENTICATED',
+        error: 'Please sign in with your customer account to place an order.',
+      };
+    }
+    if (session.status === 'forbidden_role') {
+      return {
+        success: false,
+        code: 'FORBIDDEN_ROLE',
+        error: 'Only customer accounts can place marketplace orders.',
+      };
+    }
+    if (session.status !== 'authenticated_customer') {
+      return {
+        success: false,
+        code: 'ACCOUNT_INACTIVE',
+        error: 'Your customer account is not active or ready to place orders.',
+      };
+    }
+
+    const { prisma } = await import('@/lib/prisma');
+    const result = await executePlaceCustomerOrder(prisma, {
+      customerUserId: session.customer.userId,
+      customerProfileId: session.customer.customerProfileId,
+      addressId: input.addressId,
+      paymentMethod: 'COD',
+      expectedSubtotal: input.expectedSubtotal,
+      customerNote: input.customerNote,
+    });
+
+    if (result.success) {
+      revalidatePath('/cart');
+      revalidatePath('/checkout');
+      revalidatePath('/orders');
+      revalidatePath(`/orders/${result.orderId}`);
+      revalidatePath('/profile');
+      revalidatePath('/');
+      revalidatePath('/stores');
+      revalidatePath('/products');
+      revalidatePath('/vendor', 'layout');
+    } else {
+      revalidateCustomerCartRoutes();
+    }
+
+    return result;
+  } catch (error: unknown) {
+    console.error('Failed to place customer order:', error);
+    return {
+      success: false,
+      code: 'ORDER_CREATION_FAILED',
+      error: 'Could not place your order right now. Your cart has not been charged or cleared — please try again.',
     };
   }
 }

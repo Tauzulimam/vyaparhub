@@ -1,20 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { Button } from '@/components/ui/Button';
 import {
   createCustomerAddressAction,
-  validateCustomerCheckoutAction,
+  placeCustomerOrderAction,
 } from '@/lib/cart/actions';
 import type { AuthenticatedCustomerContext } from '@/lib/cart/server';
 import {
-  type CheckoutValidationResult,
   type CreateCustomerAddressInput,
+  createEmptyCustomerCartDto,
   type CustomerAddressDto,
   type CustomerAddressTag,
   type CustomerCartDto,
@@ -28,7 +29,7 @@ const STEPS: { id: CheckoutStep; label: string; short: string }[] = [
   { id: 'address', label: 'Delivery Address', short: 'Address' },
   { id: 'delivery', label: 'Delivery Info', short: 'Delivery' },
   { id: 'payment', label: 'Payment Method', short: 'Payment' },
-  { id: 'review', label: 'Review & Validate', short: 'Review' },
+  { id: 'review', label: 'Review & Place Order', short: 'Place Order' },
 ];
 
 interface AddressFormProps {
@@ -322,6 +323,9 @@ export default function CheckoutPageClient({
     autoFetch: false,
   });
 
+  const router = useRouter();
+  const submittingRef = useRef<boolean>(false);
+
   const [addresses, setAddresses] = useState<CustomerAddressDto[]>(initialAddresses);
   const deliveryLocationLabel = deriveDeliveryLocationLabel(addresses);
   const [selectedAddressId, setSelectedAddressId] = useState<string>(
@@ -330,13 +334,42 @@ export default function CheckoutPageClient({
   const [showAddressForm, setShowAddressForm] = useState<boolean>(initialAddresses.length === 0);
   const [currentStep, setCurrentStep] = useState<CheckoutStep>('address');
   const [deliveryInstructions, setDeliveryInstructions] = useState<string>('');
-  const [isValidating, setIsValidating] = useState<boolean>(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [validatedSummary, setValidatedSummary] = useState<
-    Extract<CheckoutValidationResult, { valid: true }> | null
-  >(null);
+  const [isPlacingOrder, setIsPlacingOrder] = useState<boolean>(false);
+  const [placementError, setPlacementError] = useState<string | null>(null);
+  const [placedOrderRedirecting, setPlacedOrderRedirecting] = useState<{
+    orderId: string;
+    orderNumber: string;
+  } | null>(null);
 
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId) ?? null;
+
+  if (placedOrderRedirecting) {
+    return (
+      <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
+        <Navbar cartItemCount={0} currentLocation={deliveryLocationLabel} />
+        <main className="flex-1 max-w-xl mx-auto px-4 py-16 text-center space-y-5">
+          <div className="w-16 h-16 rounded-full bg-[#16A34A]/15 text-[#166534] border border-[#166534]/30 flex items-center justify-center mx-auto text-3xl font-bold">
+            ✓
+          </div>
+          <div className="space-y-1.5">
+            <h1 className="text-2xl font-extrabold text-[#17201A]">
+              Order {placedOrderRedirecting.orderNumber} Placed!
+            </h1>
+            <p className="text-sm text-[#647067]">
+              Taking you to your live order tracking page…
+            </p>
+          </div>
+          <Link href={`/orders/${placedOrderRedirecting.orderId}?placed=1`}>
+            <Button variant="primary" size="md">
+              Open Order Details →
+            </Button>
+          </Link>
+        </main>
+        <Footer />
+        <MobileNav cartItemCount={0} />
+      </div>
+    );
+  }
 
   // Empty cart guard
   if (items.length === 0 || !store) {
@@ -369,8 +402,7 @@ export default function CheckoutPageClient({
 
   const goNext = () => {
     if (!canCheckout) return;
-    setValidationError(null);
-    setValidatedSummary(null);
+    setPlacementError(null);
     const nextStep = STEPS[stepIndex + 1];
     if (nextStep) setCurrentStep(nextStep.id);
   };
@@ -388,35 +420,38 @@ export default function CheckoutPageClient({
     syncDeliveryLocation(deriveDeliveryLocationLabel(res.addresses));
     setSelectedAddressId(res.address.id);
     setShowAddressForm(false);
-    setValidatedSummary(null);
-    setValidationError(null);
+    setPlacementError(null);
     return { success: true };
   };
 
-  const handleValidateCheckout = async () => {
-    if (!selectedAddressId || isValidating) return;
-    setIsValidating(true);
-    setValidationError(null);
-    setValidatedSummary(null);
+  const handlePlaceOrder = async () => {
+    if (!selectedAddressId || isPlacingOrder || submittingRef.current) return;
+    submittingRef.current = true;
+    setIsPlacingOrder(true);
+    setPlacementError(null);
 
-    const res = await validateCustomerCheckoutAction({
+    const res = await placeCustomerOrderAction({
       addressId: selectedAddressId,
-      paymentMethod: 'COD',
       expectedSubtotal: cart.subtotal,
+      customerNote: deliveryInstructions,
     });
 
-    setIsValidating(false);
-
-    if (!res.valid) {
+    if (!res.success) {
+      submittingRef.current = false;
+      setIsPlacingOrder(false);
       if (res.cart) {
         syncCart(res.cart, 'authenticated_customer');
       }
-      setValidationError(res.error);
+      setPlacementError(res.error);
       return;
     }
 
-    syncCart(res.cart, 'authenticated_customer');
-    setValidatedSummary(res);
+    setPlacedOrderRedirecting({
+      orderId: res.orderId,
+      orderNumber: res.orderNumber,
+    });
+    syncCart(createEmptyCustomerCartDto(), 'authenticated_customer');
+    router.replace(`/orders/${res.orderId}?placed=1`);
   };
 
   return (
@@ -478,8 +513,8 @@ export default function CheckoutPageClient({
                     <button
                       type="button"
                       onClick={() => {
-                        if (isDone) {
-                          setValidatedSummary(null);
+                        if (isDone && !isPlacingOrder) {
+                          setPlacementError(null);
                           setCurrentStep(step.id);
                         }
                       }}
@@ -552,7 +587,7 @@ export default function CheckoutPageClient({
                       checked={selectedAddressId === addr.id}
                       onChange={() => {
                         setSelectedAddressId(addr.id);
-                        setValidatedSummary(null);
+                        setPlacementError(null);
                       }}
                       className="mt-1 w-4 h-4 text-[#166534] focus:ring-[#166534]"
                     />
@@ -729,47 +764,19 @@ export default function CheckoutPageClient({
               </section>
             )}
 
-            {/* STEP 4: Review & Server-Side Checkout Readiness Validation */}
+            {/* STEP 4: Review & Place Order */}
             {currentStep === 'review' && (
               <section aria-labelledby="review-heading" className="space-y-4">
                 <h1 id="review-heading" className="text-xl font-extrabold text-[#17201A]">
-                  Review &amp; Validate Checkout
+                  Review &amp; Place Order
                 </h1>
 
-                {validationError && (
+                {placementError && (
                   <div
                     role="alert"
                     className="rounded-2xl bg-[#DC2626]/10 border border-[#DC2626]/30 p-4 text-xs font-medium text-[#DC2626]"
                   >
-                    {validationError}
-                  </div>
-                )}
-
-                {validatedSummary && (
-                  <div
-                    role="status"
-                    className="rounded-2xl bg-[#16A34A]/10 border border-[#166534]/40 p-5 space-y-2.5"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center text-xs font-bold">
-                        ✓
-                      </span>
-                      <h2 className="text-sm font-extrabold text-[#166534]">
-                        Checkout Validated &amp; Ready
-                      </h2>
-                    </div>
-                    <p className="text-xs text-[#17201A] leading-relaxed">
-                      Live store eligibility, stock availability ({validatedSummary.cart.itemCount}{' '}
-                      {validatedSummary.cart.itemCount === 1 ? 'unit' : 'units'}), current store
-                      pricing (<strong>₹{validatedSummary.totalAmount}</strong>), and delivery
-                      address ownership for{' '}
-                      <strong>{validatedSummary.selectedAddress.recipientName}</strong> have been
-                      verified against PostgreSQL with <strong>Cash on Delivery</strong>.
-                    </p>
-                    <p className="text-[11px] text-[#647067]">
-                      Note: Order creation is intentionally deferred to Phase 9 — no order has been
-                      placed yet, and your cart remains safely saved.
-                    </p>
+                    {placementError}
                   </div>
                 )}
 
@@ -815,11 +822,12 @@ export default function CheckoutPageClient({
                       </p>
                       <button
                         type="button"
+                        disabled={isPlacingOrder}
                         onClick={() => {
-                          setValidatedSummary(null);
+                          setPlacementError(null);
                           setCurrentStep('address');
                         }}
-                        className="text-xs font-semibold text-[#166534] hover:underline"
+                        className="text-xs font-semibold text-[#166534] hover:underline disabled:opacity-40"
                       >
                         Change
                       </button>
@@ -843,24 +851,29 @@ export default function CheckoutPageClient({
                     Payment Method
                   </p>
                   <p className="text-sm font-bold text-[#17201A] mt-1">
-                    Cash on Delivery (COD)
+                    Cash on Delivery (COD) — Pay ₹{subtotal} on delivery
                   </p>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
-                  <Button variant="outline" size="md" onClick={() => setCurrentStep('payment')}>
+                  <Button
+                    variant="outline"
+                    size="md"
+                    disabled={isPlacingOrder}
+                    onClick={() => setCurrentStep('payment')}
+                  >
                     ← Back
                   </Button>
                   <Button
                     variant="primary"
                     size="lg"
-                    onClick={() => void handleValidateCheckout()}
-                    isLoading={isValidating}
-                    disabled={isValidating || !selectedAddressId || !canCheckout}
+                    onClick={() => void handlePlaceOrder()}
+                    isLoading={isPlacingOrder}
+                    disabled={isPlacingOrder || !selectedAddressId || !canCheckout}
                   >
-                    {isValidating
-                      ? 'Validating Live Stock & Prices…'
-                      : 'Validate Checkout Readiness →'}
+                    {isPlacingOrder
+                      ? 'Placing Order…'
+                      : `Place Order (COD) • ₹${subtotal}`}
                   </Button>
                 </div>
               </section>

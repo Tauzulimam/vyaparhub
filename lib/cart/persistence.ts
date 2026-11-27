@@ -25,6 +25,7 @@ import {
   type CustomerOrderDetailDto,
   type CustomerOrderItemDto,
   type CustomerOrderStatusDto,
+  type CustomerOrderStatusHistoryDto,
   type CustomerOrderSummaryDto,
   type CustomerPaymentMethodDto,
   type CustomerPaymentStatusDto,
@@ -1810,7 +1811,7 @@ export async function queryCustomerOrderDetail(
     return null;
   }
 
-  const [itemRows, addressRow] = await Promise.all([
+  const [itemRows, addressRow, historyRows] = await Promise.all([
     prisma.orderItem.findMany({
       where: { orderId: orderRow.id },
       orderBy: { createdAt: 'asc' },
@@ -1819,6 +1820,17 @@ export async function queryCustomerOrderDetail(
     prisma.orderAddress.findUnique({
       where: { orderId: orderRow.id },
       select: ORDER_ADDRESS_SCALAR_SELECT,
+    }),
+    prisma.orderStatusHistory.findMany({
+      where: { orderId: orderRow.id },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        status: true,
+        changedByType: true,
+        note: true,
+        createdAt: true,
+      },
     }),
   ]);
 
@@ -1862,6 +1874,15 @@ export async function queryCustomerOrderDetail(
     };
   }
 
+  const statusHistory: CustomerOrderStatusHistoryDto[] = historyRows.map((h) => ({
+    id: h.id,
+    status: h.status as CustomerOrderStatusDto,
+    changedByType: h.changedByType,
+    note: h.note,
+    createdAtIso: h.createdAt.toISOString(),
+    createdAtLabel: formatPlacedAtLabel(h.createdAt),
+  }));
+
   return {
     id: orderRow.id,
     orderNumber: orderRow.orderNumber,
@@ -1884,5 +1905,6 @@ export async function queryCustomerOrderDetail(
     })),
     items,
     deliveryAddress,
+    statusHistory,
   };
 }

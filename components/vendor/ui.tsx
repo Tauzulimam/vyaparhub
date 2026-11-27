@@ -42,9 +42,11 @@ export const Badge: React.FC<{ tone?: Tone; children: React.ReactNode }> = ({ to
 );
 
 export const ORDER_STATUS_LABEL: Record<VendorOrderStatus, string> = {
+  PLACED: 'Order Placed',
   PENDING: 'Order Placed',
   ACCEPTED: 'Accepted',
   PREPARING: 'Preparing',
+  READY_FOR_PICKUP: 'Ready for Pickup',
   READY: 'Ready for Pickup',
   PICKED_UP: 'Picked up',
   OUT_FOR_DELIVERY: 'Out for delivery',
@@ -53,9 +55,11 @@ export const ORDER_STATUS_LABEL: Record<VendorOrderStatus, string> = {
 };
 
 const ORDER_TONE: Record<VendorOrderStatus, Tone> = {
+  PLACED: 'terracotta',
   PENDING: 'terracotta',
   ACCEPTED: 'amber',
   PREPARING: 'amber',
+  READY_FOR_PICKUP: 'green',
   READY: 'green',
   PICKED_UP: 'gray',
   OUT_FOR_DELIVERY: 'gray',

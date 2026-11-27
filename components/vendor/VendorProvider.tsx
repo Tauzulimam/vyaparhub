@@ -12,13 +12,13 @@ import type {
   VendorProfileDto,
   VendorStoreInfo,
 } from '@/types/vendor';
-import { initialVendorOrders } from '@/data/vendorData';
 import {
   addStoreProductStockAction,
   createStoreProductAction,
   removeStoreProductAction,
   setActiveStoreCookieAction,
   setStoreProductStockAction,
+  transitionVendorOrderStatusAction,
   updateStoreDetailsAction,
   updateStoreOperatingStatusAction,
   updateStoreProductAvailabilityAction,
@@ -26,6 +26,11 @@ import {
 } from '@/lib/vendor/actions';
 
 export interface InventoryMutationResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface OrderMutationResult {
   success: boolean;
   error?: string;
 }
@@ -66,9 +71,11 @@ export interface VendorContextValue {
     setStock: (id: string, quantity: number) => Promise<InventoryMutationResult>;
     removeProduct: (id: string) => Promise<InventoryMutationResult>;
     restockProduct: (id: string, additionalUnits: number) => Promise<InventoryMutationResult>;
-    advanceOrder: (id: string) => void;
-    updateOrderStatus: (orderId: string, nextStatus: VendorOrderStatus) => void;
-    cancelOrder: (orderId: string) => void;
+    advanceOrder: (id: string) => Promise<OrderMutationResult>;
+    updateOrderStatus: (
+      orderId: string,
+      nextStatus: VendorOrderStatus
+    ) => Promise<OrderMutationResult>;
   };
 }
 
@@ -85,6 +92,7 @@ interface VendorProviderProps {
   categories: CategoryOptionDto[];
   masterCatalog: MasterProduct[];
   initialStoreProducts: StoreProduct[];
+  initialOrders: VendorOrder[];
   children: React.ReactNode;
 }
 
@@ -95,6 +103,7 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
   categories,
   masterCatalog,
   initialStoreProducts,
+  initialOrders,
   children,
 }) => {
   const router = useRouter();
@@ -112,8 +121,8 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
     useState<StoreProduct[]>(initialStoreProducts);
   const [allProducts, setAllProducts] = useState<StoreProduct[]>(initialStoreProducts);
 
-  // In-memory orders remain mock for Phase 2 prototype continuity until Phase 5C+
-  const [allOrders, setAllOrders] = useState<VendorOrder[]>(initialVendorOrders);
+  const [prevInitialOrders, setPrevInitialOrders] = useState<VendorOrder[]>(initialOrders);
+  const [allOrders, setAllOrders] = useState<VendorOrder[]>(initialOrders);
 
   if (prevInitialStores !== initialStores) {
     setPrevInitialStores(initialStores);
@@ -139,6 +148,11 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
   if (prevInitialStoreProducts !== initialStoreProducts) {
     setPrevInitialStoreProducts(initialStoreProducts);
     setAllProducts(initialStoreProducts);
+  }
+
+  if (prevInitialOrders !== initialOrders) {
+    setPrevInitialOrders(initialOrders);
+    setAllOrders(initialOrders);
   }
 
   // Compute active store
@@ -404,31 +418,55 @@ export const VendorProvider: React.FC<VendorProviderProps> = ({
         return { success: true };
       },
 
-      advanceOrder(id: string) {
-        const vendorFlow: VendorOrderStatus[] = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY'];
+      async advanceOrder(id: string): Promise<OrderMutationResult> {
+        const current = allOrders.find((o) => o.id === id);
+        if (!current) {
+          return { success: false, error: 'Order not found in your active store.' };
+        }
+        const nextMap: Partial<Record<VendorOrderStatus, VendorOrderStatus>> = {
+          PLACED: 'ACCEPTED',
+          PENDING: 'ACCEPTED',
+          ACCEPTED: 'PREPARING',
+          PREPARING: 'READY_FOR_PICKUP',
+        };
+        const nextStatus = nextMap[current.status];
+        if (!nextStatus) {
+          return {
+            success: false,
+            error: 'This order cannot be advanced further by the store.',
+          };
+        }
+        const res = await transitionVendorOrderStatusAction(id, nextStatus);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
         setAllOrders((prev) =>
-          prev.map((o) => {
-            if (o.id !== id) return o;
-            const idx = vendorFlow.indexOf(o.status);
-            if (idx < 0 || idx >= vendorFlow.length - 1) return o;
-            return { ...o, status: vendorFlow[idx + 1] };
-          })
+          prev.map((o) => (o.id === res.data.order.id ? res.data.order : o))
         );
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
 
-      updateOrderStatus(orderId: string, nextStatus: VendorOrderStatus) {
+      async updateOrderStatus(
+        orderId: string,
+        nextStatus: VendorOrderStatus
+      ): Promise<OrderMutationResult> {
+        const res = await transitionVendorOrderStatusAction(orderId, nextStatus);
+        if (!res.success) {
+          return { success: false, error: res.error };
+        }
         setAllOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+          prev.map((o) => (o.id === res.data.order.id ? res.data.order : o))
         );
-      },
-
-      cancelOrder(orderId: string) {
-        setAllOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: 'CANCELLED' } : o))
-        );
+        startTransition(() => {
+          router.refresh();
+        });
+        return { success: true };
       },
     };
-  }, [stores, store, currentActiveId, router]);
+  }, [stores, store, currentActiveId, allOrders, router]);
 
   const value: VendorContextValue = {
     vendorProfile,

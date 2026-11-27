@@ -50,7 +50,9 @@ export const VendorShell: React.FC<{ children: React.ReactNode }> = ({ children 
   if (pathname === '/vendor/register' || pathname.startsWith('/vendor/register/')) {
     return <>{children}</>;
   }
-  const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
+  const pendingCount = orders.filter(
+    (o) => o.status === 'PLACED' || o.status === 'PENDING'
+  ).length;
 
   const isActive = (item: NavItem) =>
     item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);

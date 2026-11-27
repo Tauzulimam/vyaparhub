@@ -56,8 +56,13 @@ function subscribe(listener: () => void) {
 
 const getSnapshot = () => state;
 
-/** Statuses the VENDOR controls. Everything after READY belongs to delivery partners. */
-export const VENDOR_FLOW: VendorOrderStatus[] = ['PENDING', 'ACCEPTED', 'PREPARING', 'READY'];
+/** Statuses the VENDOR controls. Everything after READY_FOR_PICKUP belongs to delivery partners. */
+export const VENDOR_FLOW: VendorOrderStatus[] = [
+  'PLACED',
+  'ACCEPTED',
+  'PREPARING',
+  'READY_FOR_PICKUP',
+];
 
 /** Full lifecycle, used only for display (progress bar). */
 export const ORDER_FLOW: VendorOrderStatus[] = [
@@ -67,11 +72,17 @@ export const ORDER_FLOW: VendorOrderStatus[] = [
   'DELIVERED',
 ];
 
-export const DELIVERY_PARTNER_STATUSES: VendorOrderStatus[] = ['PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED'];
+export const DELIVERY_PARTNER_STATUSES: VendorOrderStatus[] = [
+  'PICKED_UP',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
+];
 
 /** Next status a vendor may set. Returns null once the order is Ready for Pickup. */
 export function nextOrderStatus(status: VendorOrderStatus): VendorOrderStatus | null {
-  const idx = VENDOR_FLOW.indexOf(status);
+  const normalized: VendorOrderStatus =
+    status === 'PENDING' ? 'PLACED' : status === 'READY' ? 'READY_FOR_PICKUP' : status;
+  const idx = VENDOR_FLOW.indexOf(normalized);
   if (idx < 0 || idx >= VENDOR_FLOW.length - 1) return null;
   return VENDOR_FLOW[idx + 1];
 }
@@ -250,8 +261,8 @@ export const vendorActions = {
     return vendorActions.addStock(id, additionalUnits);
   },
 
-  /** Vendors can only move an order up to READY (Ready for Pickup). */
-  advanceOrder(id: string) {
+  /** Vendors can only move an order up to READY_FOR_PICKUP (Ready for Pickup). */
+  async advanceOrder(id: string): Promise<OrderMutationResult> {
     setState({
       allOrders: state.allOrders.map((o) => {
         if (o.id !== id) return o;
@@ -259,21 +270,25 @@ export const vendorActions = {
         return next ? { ...o, status: next } : o;
       }),
     });
+    return { success: true };
   },
 
-  cancelOrder(id: string) {
+  async updateOrderStatus(
+    orderId: string,
+    nextStatus: VendorOrderStatus
+  ): Promise<OrderMutationResult> {
     setState({
       allOrders: state.allOrders.map((o) =>
-        o.id === id && (o.status === 'PENDING' || o.status === 'ACCEPTED')
-          ? { ...o, status: 'CANCELLED' as const }
-          : o
+        o.id === orderId ? { ...o, status: nextStatus } : o
       ),
     });
+    return { success: true };
   },
 };
 
 import {
   type InventoryMutationResult,
+  type OrderMutationResult,
   type StoreMutationResult,
   useVendorContext,
 } from '@/components/vendor/VendorProvider';
@@ -310,7 +325,6 @@ export function useVendorState() {
         restockProduct: ctx.actions.restockProduct,
         advanceOrder: ctx.actions.advanceOrder,
         updateOrderStatus: ctx.actions.updateOrderStatus,
-        cancelOrder: ctx.actions.cancelOrder,
       },
     };
   }

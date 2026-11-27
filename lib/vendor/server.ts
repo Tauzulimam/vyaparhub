@@ -12,6 +12,7 @@ import type {
   CategoryOptionDto,
   MasterProduct,
   StoreProduct,
+  VendorOrder,
   VendorProfileDto,
   VendorStoreInfo,
 } from '@/types/vendor';
@@ -611,6 +612,12 @@ export async function getAuthenticatedVendorData() {
   const masterCatalog = masterRecords.map(mapMasterProductToDto);
   const storeProducts = storeProductRecords.map(mapStoreProductToDto);
 
+  const { queryVendorOrdersForStores } = await import('@/lib/orders/persistence');
+  const orders: VendorOrder[] = await queryVendorOrdersForStores(
+    prisma,
+    stores.map((s) => s.id)
+  );
+
   const activeCookieVal = cookieStore.get(ACTIVE_STORE_COOKIE)?.value;
 
   let activeStoreId: string | null = null;
@@ -628,5 +635,6 @@ export async function getAuthenticatedVendorData() {
     categories,
     masterCatalog,
     storeProducts,
+    orders,
   };
 }
