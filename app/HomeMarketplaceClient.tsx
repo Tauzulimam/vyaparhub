@@ -13,23 +13,37 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { StoreCard } from '@/components/store/StoreCard';
 import { SwitchCartModal } from '@/components/cart/SwitchCartModal';
 import type { Category, Product, Store } from '@/types';
-import { useMockCart } from '@/lib/mockCart';
+import { useCustomerCart } from '@/lib/cart/useCustomerCart';
 
 interface HomeMarketplaceClientProps {
   categories: Category[];
   stores: Store[];
   products: Product[];
+  initialLocationLabel: string;
 }
 
 export default function HomeMarketplaceClient({
   categories,
   stores,
   products,
+  initialLocationLabel,
 }: HomeMarketplaceClientProps) {
   const router = useRouter();
-  const { cartCount, addToCart, replaceCartWithProduct, store: cartStore } = useMockCart();
-  const [cartFeedback, setCartFeedback] = useState<string | null>(null);
+  const {
+    cartCount,
+    deliveryLocationLabel,
+    addToCart,
+    replaceCartWithProduct,
+    store: cartStore,
+  } = useCustomerCart({
+    initialLocationLabel,
+  });
+  const [cartFeedback, setCartFeedback] = useState<{ text: string; isError?: boolean } | null>(
+    null
+  );
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  const [conflictStoreName, setConflictStoreName] = useState<string>('');
+  const [isSwitchingStore, setIsSwitchingStore] = useState<boolean>(false);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('All');
 
   const categoryFilterOptions = useMemo(() => {
@@ -53,22 +67,27 @@ export default function HomeMarketplaceClient({
 
   const dailyEssentialProducts = useMemo(() => products.slice(0, 5), [products]);
 
-  const primaryAreaLabel = useMemo(() => {
-    const first = stores[0];
-    if (first?.area && first?.city) {
-      return `${first.area}, ${first.city}`;
-    }
-    return 'Local Delivery Zone';
-  }, [stores]);
+  const showToast = (text: string, isError = false) => {
+    setCartFeedback({ text, isError });
+    setTimeout(() => setCartFeedback(null), 4000);
+  };
 
-  const handleAddToCart = (product: Product) => {
-    const result = addToCart(product, 1);
+  const handleAddToCart = async (product: Product) => {
+    const result = await addToCart(product.id, 1);
     if (result.success) {
-      setCartFeedback(`Added "${product.name}" from ${product.storeName} to cart.`);
-      setTimeout(() => setCartFeedback(null), 4000);
-    } else {
-      setPendingProduct(product);
+      showToast(`Added "${product.name}" from ${product.storeName} to cart.`);
+      return;
     }
+    if (result.code === 'UNAUTHENTICATED') {
+      router.push('/login?next=%2F');
+      return;
+    }
+    if (result.code === 'STORE_CONFLICT') {
+      setConflictStoreName(result.conflictStore?.name || cartStore?.name || 'another store');
+      setPendingProduct(product);
+      return;
+    }
+    showToast(result.error, true);
   };
 
   const handleHeroSearch = (query: string) => {
@@ -82,9 +101,9 @@ export default function HomeMarketplaceClient({
       {/* 1. Header/Navbar */}
       <Navbar
         cartItemCount={cartCount}
-        currentLocation={primaryAreaLabel}
+        currentLocation={deliveryLocationLabel}
         onLocationClick={() =>
-          setCartFeedback(`Browsing active local stores serving ${primaryAreaLabel}.`)
+          showToast(`Delivering to: ${deliveryLocationLabel}. Manage addresses in My Profile.`)
         }
       />
 
@@ -92,12 +111,18 @@ export default function HomeMarketplaceClient({
       {cartFeedback && (
         <aside
           aria-live="polite"
-          className="fixed top-20 right-4 z-50 max-w-sm p-3.5 bg-white border border-[#166534] rounded-xl shadow-lg flex items-center gap-3 animate-fade-in"
+          className={`fixed top-20 right-4 z-50 max-w-sm p-3.5 bg-white border rounded-xl shadow-lg flex items-center gap-3 animate-fade-in ${
+            cartFeedback.isError ? 'border-[#DC2626]' : 'border-[#166534]'
+          }`}
         >
-          <div className="w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center shrink-0 text-xs font-bold">
-            ✓
+          <div
+            className={`w-6 h-6 rounded-full text-white flex items-center justify-center shrink-0 text-xs font-bold ${
+              cartFeedback.isError ? 'bg-[#DC2626]' : 'bg-[#166534]'
+            }`}
+          >
+            {cartFeedback.isError ? '!' : '✓'}
           </div>
-          <p className="text-xs font-medium text-[#17201A]">{cartFeedback}</p>
+          <p className="text-xs font-medium text-[#17201A]">{cartFeedback.text}</p>
           <button
             onClick={() => setCartFeedback(null)}
             className="text-[#647067] hover:text-[#17201A] text-xs font-bold ml-auto"
@@ -435,15 +460,23 @@ export default function HomeMarketplaceClient({
       {pendingProduct && (
         <SwitchCartModal
           newProduct={pendingProduct}
-          currentStoreName={cartStore?.name || 'another store'}
-          onCancel={() => setPendingProduct(null)}
-          onConfirm={() => {
-            replaceCartWithProduct(pendingProduct, 1);
-            setCartFeedback(
-              `Switched cart to ${pendingProduct.storeName} and added "${pendingProduct.name}".`
-            );
-            setTimeout(() => setCartFeedback(null), 4000);
+          currentStoreName={conflictStoreName || cartStore?.name || 'another store'}
+          isSubmitting={isSwitchingStore}
+          onCancel={() => {
+            if (!isSwitchingStore) setPendingProduct(null);
+          }}
+          onConfirm={async () => {
+            setIsSwitchingStore(true);
+            const res = await replaceCartWithProduct(pendingProduct.id, 1);
+            setIsSwitchingStore(false);
             setPendingProduct(null);
+            if (res.success) {
+              showToast(
+                `Switched cart to ${pendingProduct.storeName} and added "${pendingProduct.name}".`
+              );
+            } else {
+              showToast(res.error, true);
+            }
           }}
         />
       )}

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMockCart } from '@/lib/mockCart';
+import { useCustomerCart } from '@/lib/cart/useCustomerCart';
 
 interface MobileNavProps {
   cartItemCount?: number;
@@ -11,7 +11,7 @@ interface MobileNavProps {
 
 export const MobileNav: React.FC<MobileNavProps> = ({ cartItemCount }) => {
   const pathname = usePathname();
-  const { cartCount: sharedCartCount } = useMockCart();
+  const { cartCount: sharedCartCount } = useCustomerCart();
   const effectiveCartCount = cartItemCount !== undefined ? cartItemCount : sharedCartCount;
 
   const navItems = [

@@ -24,12 +24,14 @@ function HomeLoadingFallback() {
 }
 
 async function HomeMarketplaceContent() {
-  const { categories, stores, products } = await getCustomerMarketplaceData();
+  const { categories, stores, products, deliveryLocationLabel } =
+    await getCustomerMarketplaceData();
   return (
     <HomeMarketplaceClient
       categories={categories}
       stores={stores}
       products={products}
+      initialLocationLabel={deliveryLocationLabel}
     />
   );
 }

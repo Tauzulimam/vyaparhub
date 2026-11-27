@@ -8,17 +8,23 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { StoreCard } from '@/components/store/StoreCard';
 import { Button } from '@/components/ui/Button';
 import { SearchBar } from '@/components/ui/SearchBar';
+import { useCustomerCart } from '@/lib/cart/useCustomerCart';
 import type { Category, Store } from '@/types';
 
 interface StoresDiscoveryClientProps {
   stores: Store[];
   categories: Category[];
+  initialLocationLabel: string;
 }
 
 export default function StoresDiscoveryClient({
   stores,
   categories,
+  initialLocationLabel,
 }: StoresDiscoveryClientProps) {
+  const { cartCount, deliveryLocationLabel } = useCustomerCart({
+    initialLocationLabel,
+  });
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'featured' | 'min-order' | 'radius' | 'name'>('featured');
@@ -27,14 +33,6 @@ export default function StoresDiscoveryClient({
     () => ['All', ...categories.map((cat) => cat.name)],
     [categories]
   );
-
-  const primaryLocationLabel = useMemo(() => {
-    const first = stores[0];
-    if (first?.area && first?.city) {
-      return `${first.area}, ${first.city}`;
-    }
-    return 'Local Delivery Zone';
-  }, [stores]);
 
   const filteredStores = useMemo(() => {
     let list = [...stores];
@@ -85,7 +83,7 @@ export default function StoresDiscoveryClient({
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
-      <Navbar currentLocation={primaryLocationLabel} />
+      <Navbar cartItemCount={cartCount} currentLocation={deliveryLocationLabel} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 pb-24 md:pb-16">
         {/* Breadcrumb / Top Bar */}

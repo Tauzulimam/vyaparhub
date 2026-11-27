@@ -32,6 +32,7 @@ async function ProductDetailLoader({ params }: ProductDetailPageProps) {
       product={detail.product}
       store={detail.store}
       otherStoreOffers={detail.otherStoreOffers}
+      initialLocationLabel={detail.deliveryLocationLabel}
     />
   );
 }

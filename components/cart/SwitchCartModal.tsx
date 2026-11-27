@@ -9,6 +9,7 @@ export interface SwitchCartModalProps {
   currentStoreName: string;
   onConfirm: () => void;
   onCancel: () => void;
+  isSubmitting?: boolean;
 }
 
 export const SwitchCartModal: React.FC<SwitchCartModalProps> = ({
@@ -16,6 +17,7 @@ export const SwitchCartModal: React.FC<SwitchCartModalProps> = ({
   currentStoreName,
   onConfirm,
   onCancel,
+  isSubmitting = false,
 }) => {
   return (
     <div
@@ -50,10 +52,17 @@ export const SwitchCartModal: React.FC<SwitchCartModalProps> = ({
         </aside>
 
         <div className="flex gap-3">
-          <Button variant="outline" size="md" fullWidth onClick={onCancel}>
+          <Button variant="outline" size="md" fullWidth disabled={isSubmitting} onClick={onCancel}>
             Keep Current Cart
           </Button>
-          <Button variant="danger" size="md" fullWidth onClick={onConfirm}>
+          <Button
+            variant="danger"
+            size="md"
+            fullWidth
+            isLoading={isSubmitting}
+            disabled={isSubmitting}
+            onClick={onConfirm}
+          >
             Clear &amp; Switch Store
           </Button>
         </div>

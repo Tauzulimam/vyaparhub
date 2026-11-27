@@ -32,7 +32,13 @@ async function StoreDetailLoader({ params }: StoreDetailPageProps) {
     notFound();
   }
 
-  return <StoreDetailClient store={detail.store} products={detail.products} />;
+  return (
+    <StoreDetailClient
+      store={detail.store}
+      products={detail.products}
+      initialLocationLabel={detail.deliveryLocationLabel}
+    />
+  );
 }
 
 export default function StoreDetailPage({ params }: StoreDetailPageProps) {

@@ -3,29 +3,44 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { Button } from '@/components/ui/Button';
 import { SwitchCartModal } from '@/components/cart/SwitchCartModal';
 import type { OtherStoreOffer } from '@/lib/marketplace/server';
-import { useMockCart } from '@/lib/mockCart';
+import { useCustomerCart } from '@/lib/cart/useCustomerCart';
 import type { Product, Store } from '@/types';
 
 interface ProductDetailClientProps {
   product: Product;
   store: Store;
   otherStoreOffers: OtherStoreOffer[];
+  initialLocationLabel: string;
 }
 
 export default function ProductDetailClient({
   product,
   store,
   otherStoreOffers,
+  initialLocationLabel,
 }: ProductDetailClientProps) {
-  const { cartCount, store: cartStore, addToCart, replaceCartWithProduct } = useMockCart();
+  const router = useRouter();
+  const {
+    cartCount,
+    deliveryLocationLabel,
+    store: cartStore,
+    addToCart,
+    replaceCartWithProduct,
+  } = useCustomerCart({
+    initialLocationLabel,
+  });
   const [selectedQty, setSelectedQty] = useState<number>(1);
-  const [cartToast, setCartToast] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState<boolean>(false);
+  const [isSwitchingStore, setIsSwitchingStore] = useState<boolean>(false);
+  const [conflictStoreName, setConflictStoreName] = useState<string>('');
+  const [cartToast, setCartToast] = useState<{ text: string; isError?: boolean } | null>(null);
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
 
   const maxStock = Math.max(1, product.quantityAvailable ?? 1);
@@ -36,35 +51,55 @@ export default function ProductDetailClient({
   const savingsAmount =
     product.mrp > product.price ? Number((product.mrp - product.price).toFixed(2)) : 0;
 
-  const locationLabel =
+  const storeLocationLabel =
     store.area && store.city ? `${store.area}, ${store.city}` : store.address;
 
-  const handleAdd = () => {
-    if (!product.inStock) return;
-    const res = addToCart(product, selectedQty);
+  const showToast = (text: string, isError = false) => {
+    setCartToast({ text, isError });
+    setTimeout(() => setCartToast(null), 3500);
+  };
+
+  const handleAdd = async () => {
+    if (!product.inStock || isAdding) return;
+    setIsAdding(true);
+    const res = await addToCart(product.id, selectedQty);
+    setIsAdding(false);
+
     if (res.success) {
-      setCartToast(
-        `Added ${selectedQty}x "${product.name}" from ${store.name} to cart.`
-      );
-      setTimeout(() => setCartToast(null), 3500);
-    } else {
-      setPendingProduct(product);
+      showToast(`Added ${selectedQty}x "${product.name}" from ${store.name} to cart.`);
+      return;
     }
+    if (res.code === 'UNAUTHENTICATED') {
+      router.push(`/login?next=${encodeURIComponent(`/products/${product.id}`)}`);
+      return;
+    }
+    if (res.code === 'STORE_CONFLICT') {
+      setConflictStoreName(res.conflictStore?.name || cartStore?.name || 'another store');
+      setPendingProduct(product);
+      return;
+    }
+    showToast(res.error, true);
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
-      <Navbar cartItemCount={cartCount} currentLocation={locationLabel} />
+      <Navbar cartItemCount={cartCount} currentLocation={deliveryLocationLabel} />
 
       {cartToast && (
         <aside
           aria-live="polite"
-          className="fixed top-20 right-4 z-50 max-w-sm p-3.5 bg-white border border-[#166534] rounded-xl shadow-lg flex items-center gap-3 animate-fade-in"
+          className={`fixed top-20 right-4 z-50 max-w-sm p-3.5 bg-white border rounded-xl shadow-lg flex items-center gap-3 animate-fade-in ${
+            cartToast.isError ? 'border-[#DC2626]' : 'border-[#166534]'
+          }`}
         >
-          <div className="w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center shrink-0 text-xs font-bold">
-            ✓
+          <div
+            className={`w-6 h-6 rounded-full text-white flex items-center justify-center shrink-0 text-xs font-bold ${
+              cartToast.isError ? 'bg-[#DC2626]' : 'bg-[#166534]'
+            }`}
+          >
+            {cartToast.isError ? '!' : '✓'}
           </div>
-          <p className="text-xs font-medium text-[#17201A]">{cartToast}</p>
+          <p className="text-xs font-medium text-[#17201A]">{cartToast.text}</p>
           <button
             onClick={() => setCartToast(null)}
             className="text-[#647067] hover:text-[#17201A] text-xs font-bold ml-auto"
@@ -201,7 +236,7 @@ export default function ProductDetailClient({
                 <div className="inline-flex items-center gap-2 bg-[#F8FAF7] border border-[#E2E8E3] rounded-xl px-2.5 py-1.5">
                   <button
                     type="button"
-                    disabled={selectedQty <= 1}
+                    disabled={selectedQty <= 1 || isAdding}
                     onClick={() => setSelectedQty((q) => Math.max(1, q - 1))}
                     aria-label="Decrease quantity"
                     className="w-7 h-7 rounded-lg bg-white border border-[#E2E8E3] text-[#17201A] font-bold disabled:opacity-40"
@@ -213,7 +248,7 @@ export default function ProductDetailClient({
                   </span>
                   <button
                     type="button"
-                    disabled={selectedQty >= maxStock}
+                    disabled={selectedQty >= maxStock || isAdding}
                     onClick={() => setSelectedQty((q) => Math.min(maxStock, q + 1))}
                     aria-label="Increase quantity"
                     className="w-7 h-7 rounded-lg bg-white border border-[#E2E8E3] text-[#17201A] font-bold disabled:opacity-40"
@@ -225,8 +260,9 @@ export default function ProductDetailClient({
                 <Button
                   variant="primary"
                   size="md"
-                  disabled={!product.inStock}
-                  onClick={handleAdd}
+                  isLoading={isAdding}
+                  disabled={!product.inStock || isAdding}
+                  onClick={() => void handleAdd()}
                 >
                   {product.inStock
                     ? `Add to Cart • ₹${Number((product.price * selectedQty).toFixed(2))}`
@@ -248,7 +284,7 @@ export default function ProductDetailClient({
                     </div>
                     <p className="text-base font-bold text-[#17201A]">{store.name}</p>
                     <div className="flex flex-wrap items-center gap-3 text-xs text-[#647067]">
-                      <span>📍 {locationLabel}</span>
+                      <span>📍 {storeLocationLabel}</span>
                       {store.timing && <span>🕒 {store.timing}</span>}
                       {store.minOrderAmount !== undefined && (
                         <span>🛒 Min. order ₹{store.minOrderAmount}</span>
@@ -322,15 +358,23 @@ export default function ProductDetailClient({
       {pendingProduct && (
         <SwitchCartModal
           newProduct={pendingProduct}
-          currentStoreName={cartStore?.name || 'another store'}
-          onCancel={() => setPendingProduct(null)}
-          onConfirm={() => {
-            replaceCartWithProduct(pendingProduct, selectedQty);
-            setCartToast(
-              `Switched cart to ${pendingProduct.storeName} and added ${selectedQty}x "${pendingProduct.name}".`
-            );
-            setTimeout(() => setCartToast(null), 3500);
+          currentStoreName={conflictStoreName || cartStore?.name || 'another store'}
+          isSubmitting={isSwitchingStore}
+          onCancel={() => {
+            if (!isSwitchingStore) setPendingProduct(null);
+          }}
+          onConfirm={async () => {
+            setIsSwitchingStore(true);
+            const res = await replaceCartWithProduct(pendingProduct.id, selectedQty);
+            setIsSwitchingStore(false);
             setPendingProduct(null);
+            if (res.success) {
+              showToast(
+                `Switched cart to ${pendingProduct.storeName} and added ${selectedQty}x "${pendingProduct.name}".`
+              );
+            } else {
+              showToast(res.error, true);
+            }
           }}
         />
       )}

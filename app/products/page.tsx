@@ -20,12 +20,14 @@ function ProductsLoadingFallback() {
 }
 
 async function ProductsDiscoveryContent() {
-  const { products, categories, stores } = await getCustomerMarketplaceData();
+  const { products, categories, stores, deliveryLocationLabel } =
+    await getCustomerMarketplaceData();
   return (
     <ProductsDiscoveryClient
       products={products}
       categories={categories}
       stores={stores}
+      initialLocationLabel={deliveryLocationLabel}
     />
   );
 }

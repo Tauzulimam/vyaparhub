@@ -663,10 +663,22 @@ export async function queryCustomerStoreProductDetail(
 /**
  * Request-time Server Component wrapper for `/`, `/stores`, and `/products`.
  */
-export async function getCustomerMarketplaceData(): Promise<CustomerMarketplaceSnapshot> {
+export async function getCustomerMarketplaceData(): Promise<
+  CustomerMarketplaceSnapshot & { deliveryLocationLabel: string }
+> {
   await connection();
-  const { prisma } = await import('@/lib/prisma');
-  return queryVisibleMarketplaceSnapshot(prisma);
+  const [{ prisma }, { resolveOptionalCustomerLocationLabel }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/cart/server'),
+  ]);
+  const [snapshot, deliveryLocationLabel] = await Promise.all([
+    queryVisibleMarketplaceSnapshot(prisma),
+    resolveOptionalCustomerLocationLabel(),
+  ]);
+  return {
+    ...snapshot,
+    deliveryLocationLabel,
+  };
 }
 
 /**
@@ -674,10 +686,23 @@ export async function getCustomerMarketplaceData(): Promise<CustomerMarketplaceS
  */
 export async function getCustomerStoreDetail(
   storeId: string
-): Promise<CustomerStoreDetailResult | null> {
+): Promise<(CustomerStoreDetailResult & { deliveryLocationLabel: string }) | null> {
   await connection();
-  const { prisma } = await import('@/lib/prisma');
-  return queryCustomerStoreDetail(prisma, storeId);
+  const [{ prisma }, { resolveOptionalCustomerLocationLabel }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/cart/server'),
+  ]);
+  const [detail, deliveryLocationLabel] = await Promise.all([
+    queryCustomerStoreDetail(prisma, storeId),
+    resolveOptionalCustomerLocationLabel(),
+  ]);
+  if (!detail) {
+    return null;
+  }
+  return {
+    ...detail,
+    deliveryLocationLabel,
+  };
 }
 
 /**
@@ -685,8 +710,21 @@ export async function getCustomerStoreDetail(
  */
 export async function getCustomerStoreProductDetail(
   storeProductId: string
-): Promise<CustomerProductDetailResult | null> {
+): Promise<(CustomerProductDetailResult & { deliveryLocationLabel: string }) | null> {
   await connection();
-  const { prisma } = await import('@/lib/prisma');
-  return queryCustomerStoreProductDetail(prisma, storeProductId);
+  const [{ prisma }, { resolveOptionalCustomerLocationLabel }] = await Promise.all([
+    import('@/lib/prisma'),
+    import('@/lib/cart/server'),
+  ]);
+  const [detail, deliveryLocationLabel] = await Promise.all([
+    queryCustomerStoreProductDetail(prisma, storeProductId),
+    resolveOptionalCustomerLocationLabel(),
+  ]);
+  if (!detail) {
+    return null;
+  }
+  return {
+    ...detail,
+    deliveryLocationLabel,
+  };
 }

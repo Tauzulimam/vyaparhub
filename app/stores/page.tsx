@@ -20,8 +20,14 @@ function StoresLoadingFallback() {
 }
 
 async function StoresDiscoveryContent() {
-  const { stores, categories } = await getCustomerMarketplaceData();
-  return <StoresDiscoveryClient stores={stores} categories={categories} />;
+  const { stores, categories, deliveryLocationLabel } = await getCustomerMarketplaceData();
+  return (
+    <StoresDiscoveryClient
+      stores={stores}
+      categories={categories}
+      initialLocationLabel={deliveryLocationLabel}
+    />
+  );
 }
 
 export default function StoresPage() {

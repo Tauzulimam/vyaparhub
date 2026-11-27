@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { SearchBar } from '@/components/ui/SearchBar';
-import { useMockCart } from '@/lib/mockCart';
+import { useCustomerCart } from '@/lib/cart/useCustomerCart';
 
 interface NavbarProps {
   cartItemCount?: number;
@@ -16,15 +16,16 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({
   cartItemCount,
-  currentLocation = 'Sector 14, Main Market',
+  currentLocation,
   onSearch,
   onCartClick,
   onLocationClick,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
-  const { cartCount: sharedCartCount } = useMockCart();
+  const { cartCount: sharedCartCount, deliveryLocationLabel } = useCustomerCart();
   const effectiveCartCount = cartItemCount !== undefined ? cartItemCount : sharedCartCount;
+  const effectiveLocation = currentLocation ?? deliveryLocationLabel;
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
   const handleSearchSubmit = (query: string) => {
@@ -63,7 +64,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               type="button"
               onClick={onLocationClick}
-              aria-label={`Change delivery location, currently ${currentLocation}`}
+              aria-label={`Change delivery location, currently ${effectiveLocation}`}
               className="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F8FAF7] border border-[#E2E8E3] text-left hover:border-[#166534] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#166534]"
             >
               <svg
@@ -90,7 +91,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   Delivering to
                 </span>
                 <span className="text-xs font-semibold text-[#17201A] truncate max-w-[150px]">
-                  {currentLocation}
+                  {effectiveLocation}
                 </span>
               </div>
               <svg

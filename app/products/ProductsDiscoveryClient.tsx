@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { MobileNav } from '@/components/layout/MobileNav';
@@ -11,18 +11,20 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { Button } from '@/components/ui/Button';
 import { SwitchCartModal } from '@/components/cart/SwitchCartModal';
 import type { Category, Product, Store } from '@/types';
-import { useMockCart } from '@/lib/mockCart';
+import { useCustomerCart } from '@/lib/cart/useCustomerCart';
 
 interface ProductsDiscoveryClientProps {
   products: Product[];
   categories: Category[];
   stores: Store[];
+  initialLocationLabel: string;
 }
 
 export default function ProductsDiscoveryClient({
   products,
   categories,
   stores,
+  initialLocationLabel,
 }: ProductsDiscoveryClientProps) {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
@@ -51,9 +53,20 @@ export default function ProductsDiscoveryClient({
     'featured'
   );
 
-  const { cartCount, store: cartStore, addToCart, replaceCartWithProduct } = useMockCart();
-  const [cartToast, setCartToast] = useState<string | null>(null);
+  const router = useRouter();
+  const {
+    cartCount,
+    deliveryLocationLabel,
+    store: cartStore,
+    addToCart,
+    replaceCartWithProduct,
+  } = useCustomerCart({
+    initialLocationLabel,
+  });
+  const [cartToast, setCartToast] = useState<{ text: string; isError?: boolean } | null>(null);
   const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+  const [conflictStoreName, setConflictStoreName] = useState<string>('');
+  const [isSwitchingStore, setIsSwitchingStore] = useState<boolean>(false);
 
   const activeSearchQuery = userQuery !== null ? userQuery : urlQuery;
   const activeCategory = userCategory !== null ? userCategory : urlCategoryName;
@@ -105,14 +118,29 @@ export default function ProductsDiscoveryClient({
     return list;
   }, [products, activeSearchQuery, activeCategory, selectedStore, sortBy]);
 
-  const handleAddToCart = (product: Product) => {
-    const result = addToCart(product, 1);
+  const showToast = (text: string, isError = false) => {
+    setCartToast({ text, isError });
+    setTimeout(() => setCartToast(null), 3500);
+  };
+
+  const handleAddToCart = async (product: Product) => {
+    const result = await addToCart(product.id, 1);
     if (result.success) {
-      setCartToast(`Added 1x "${product.name}" from ${product.storeName} to cart.`);
-      setTimeout(() => setCartToast(null), 3500);
-    } else {
-      setPendingProduct(product);
+      showToast(`Added 1x "${product.name}" from ${product.storeName} to cart.`);
+      return;
     }
+    if (result.code === 'UNAUTHENTICATED') {
+      const qs = searchParams.toString();
+      const nextTarget = qs ? `/products?${qs}` : '/products';
+      router.push(`/login?next=${encodeURIComponent(nextTarget)}`);
+      return;
+    }
+    if (result.code === 'STORE_CONFLICT') {
+      setConflictStoreName(result.conflictStore?.name || cartStore?.name || 'another store');
+      setPendingProduct(product);
+      return;
+    }
+    showToast(result.error, true);
   };
 
   const handleResetFilters = () => {
@@ -124,18 +152,28 @@ export default function ProductsDiscoveryClient({
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAF7] text-[#17201A]">
-      <Navbar cartItemCount={cartCount} onSearch={(q) => setUserQuery(q)} />
+      <Navbar
+        cartItemCount={cartCount}
+        currentLocation={deliveryLocationLabel}
+        onSearch={(q) => setUserQuery(q)}
+      />
 
       {/* Cart Toast Notification */}
       {cartToast && (
         <aside
           aria-live="polite"
-          className="fixed top-20 right-4 z-50 max-w-sm p-3.5 bg-white border border-[#166534] rounded-xl shadow-lg flex items-center gap-3 animate-fade-in"
+          className={`fixed top-20 right-4 z-50 max-w-sm p-3.5 bg-white border rounded-xl shadow-lg flex items-center gap-3 animate-fade-in ${
+            cartToast.isError ? 'border-[#DC2626]' : 'border-[#166534]'
+          }`}
         >
-          <div className="w-6 h-6 rounded-full bg-[#166534] text-white flex items-center justify-center shrink-0 text-xs font-bold">
-            ✓
+          <div
+            className={`w-6 h-6 rounded-full text-white flex items-center justify-center shrink-0 text-xs font-bold ${
+              cartToast.isError ? 'bg-[#DC2626]' : 'bg-[#166534]'
+            }`}
+          >
+            {cartToast.isError ? '!' : '✓'}
           </div>
-          <p className="text-xs font-medium text-[#17201A]">{cartToast}</p>
+          <p className="text-xs font-medium text-[#17201A]">{cartToast.text}</p>
           <button
             onClick={() => setCartToast(null)}
             className="text-[#647067] hover:text-[#17201A] text-xs font-bold ml-auto"
@@ -303,15 +341,23 @@ export default function ProductsDiscoveryClient({
       {pendingProduct && (
         <SwitchCartModal
           newProduct={pendingProduct}
-          currentStoreName={cartStore?.name || 'another store'}
-          onCancel={() => setPendingProduct(null)}
-          onConfirm={() => {
-            replaceCartWithProduct(pendingProduct, 1);
-            setCartToast(
-              `Switched cart to ${pendingProduct.storeName} and added 1x "${pendingProduct.name}".`
-            );
-            setTimeout(() => setCartToast(null), 3500);
+          currentStoreName={conflictStoreName || cartStore?.name || 'another store'}
+          isSubmitting={isSwitchingStore}
+          onCancel={() => {
+            if (!isSwitchingStore) setPendingProduct(null);
+          }}
+          onConfirm={async () => {
+            setIsSwitchingStore(true);
+            const res = await replaceCartWithProduct(pendingProduct.id, 1);
+            setIsSwitchingStore(false);
             setPendingProduct(null);
+            if (res.success) {
+              showToast(
+                `Switched cart to ${pendingProduct.storeName} and added 1x "${pendingProduct.name}".`
+              );
+            } else {
+              showToast(res.error, true);
+            }
           }}
         />
       )}
